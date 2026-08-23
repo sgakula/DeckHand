@@ -1,0 +1,163 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Deckhand test client</title>
+<style>
+  body { font-family: ui-monospace, Consolas, monospace; margin: 0; display: flex; height: 100vh; }
+  #left { width: 46%; padding: 14px; overflow-y: auto; border-right: 2px solid #ccc; }
+  #right { flex: 1; padding: 14px; overflow-y: auto; background: #111; color: #9f9; }
+  fieldset { margin-bottom: 12px; border: 1px solid #aaa; }
+  legend { font-weight: bold; }
+  input, textarea { width: 95%; margin: 2px 0; font-family: inherit; }
+  button { margin: 3px 2px; cursor: pointer; }
+  .state { color: #06c; font-size: 12px; }
+  pre { white-space: pre-wrap; word-break: break-all; margin: 4px 0; border-bottom: 1px dashed #333; padding-bottom: 4px; }
+  .err { color: #f66; }
+</style>
+</head>
+<body>
+<div id="left">
+  <h3>Deckhand — dev test client</h3>
+  <p style="font-size:12px">Throwaway harness for testing the backend. The real frontend lives in <b>frontend/</b> and does not depend on this file. Serve with: <code>python -m http.server 3000</code> (matches the default CORS origin) and run the API with <code>DEV_FAKE_UID=demo-user</code>.</p>
+
+  <fieldset><legend>0 · Config</legend>
+    API base <input id="api" value="http://localhost:8080">
+    Bearer token (blank = DEV_FAKE_UID mode) <input id="token" value="">
+    <button onclick="call('GET','/healthz')">healthz</button>
+    <button onclick="call('GET','/auth/google/start').then(r=>r&&window.open(r.auth_url))">connect Google</button>
+    <button onclick="call('GET','/auth/google/status')">oauth status</button>
+  </fieldset>
+
+  <fieldset><legend>1 · Presentation</legend>
+    Title <input id="title" value="Investor pitch demo">
+    <button onclick="createPres()">create</button>
+    <button onclick="call('GET','/presentations')">list mine</button>
+    <div class="state">pid: <span id="pid">—</span></div>
+    Drive file ids (comma-sep, optional) <input id="files" value="">
+    <button onclick="call('POST',`/presentations/${pid()}/sources`,{file_ids:val('files').split(',').filter(Boolean)})">connect sources</button>
+  </fieldset>
+
+  <fieldset><legend>2 · Interview</legend>
+    <textarea id="msg" rows="2">I'm pitching my SaaS startup to seed investors, 10 minutes, I want them to agree to a follow-up meeting. Conversational tone.</textarea>
+    <button onclick="interview()">send</button>
+    <button onclick="call('GET',`/presentations/${pid()}/interview/history`)">history</button>
+  </fieldset>
+
+  <fieldset><legend>3 · Outline</legend>
+    <button onclick="proposeOutline()">propose</button>
+    <button onclick="call('POST',`/presentations/${pid()}/outline/approve`)">approve</button>
+    <div class="state">sections: <span id="sections">—</span></div>
+  </fieldset>
+
+  <fieldset><legend>4 · Build deck</legend>
+    section id <input id="sec" value="">
+    <button onclick="call('POST',`/presentations/${pid()}/deck/build/${val('sec')}`)">build section</button>
+    <button onclick="getDeck()">get deck</button>
+    <div class="state">slides: <span id="slides">—</span></div>
+    slide id <input id="slideId" value="">
+    edit request <input id="editReq" value="make this a two-column comparison">
+    <button onclick="call('POST',`/presentations/${pid()}/deck/edit`,{slide_id:val('slideId'),request_text:val('editReq')})">edit</button>
+    <button onclick="call('POST',`/presentations/${pid()}/deck/slides/${val('slideId')}/approve`)">approve slide</button>
+    <button onclick="call('GET',`/presentations/${pid()}/deck/dry-run`)">dry-run</button>
+    <button onclick="call('POST',`/presentations/${pid()}/deck/lock`)">LOCK DECK</button>
+  </fieldset>
+
+  <fieldset><legend>5 · Talk (transcript fallback — no mic needed)</legend>
+    <button onclick="startTalk()">start talk</button>
+    <div class="state">talk id: <span id="tkid">—</span></div>
+    <textarea id="speech" rows="3">So our revenue this quarter was around two million dollars, and yes Priya, great question about churn — I'll get back to you with the exact number by Friday.</textarea>
+    current slide id <input id="curSlide" value="">
+    <button onclick="pushTranscript()">push transcript window</button>
+    <button onclick="call('POST',`/presentations/${pid()}/talks/${tkid()}/stop`)">STOP → post-talk pipeline</button>
+    <button onclick="call('GET',`/presentations/${pid()}/talks/${tkid()}`)">get talk + notes</button>
+  </fieldset>
+
+  <fieldset><legend>6 · Feedback / versions / branch</legend>
+    <input id="fbNote" value="fewer metric slides, open with a story">
+    <button onclick="feedback()">send feedback</button>
+    <button onclick="call('GET',`/presentations/${pid()}/feedback/profile`)">profile</button>
+    <button onclick="call('GET',`/presentations/${pid()}/versions`)">versions</button>
+    version <input id="ver" value="1" style="width:50px">
+    branch instruction <input id="branchReq" value="make a 5-minute customer version of this deck">
+    <button onclick="call('POST',`/presentations/${pid()}/versions/${val('ver')}/branch`,{instruction:val('branchReq')})">branch</button>
+  </fieldset>
+</div>
+<div id="right"><b>log</b><div id="log"></div></div>
+
+<script>
+const S = { pid: "", tkid: "" };
+const val = id => document.getElementById(id).value.trim();
+const pid = () => S.pid || val("slideId").split("-")[0] || "(set pid)";
+const tkid = () => S.tkid || "(start a talk)";
+
+function log(label, data, isErr) {
+  const pre = document.createElement("pre");
+  if (isErr) pre.className = "err";
+  pre.textContent = label + "\n" + (typeof data === "string" ? data : JSON.stringify(data, null, 1));
+  const el = document.getElementById("log");
+  el.prepend(pre);
+}
+
+async function call(method, path, body) {
+  const headers = { "content-type": "application/json" };
+  if (val("token")) headers["authorization"] = "Bearer " + val("token");
+  try {
+    const res = await fetch(val("api") + path, {
+      method, headers, body: body ? JSON.stringify(body) : undefined });
+    const data = await res.json().catch(() => ({}));
+    log(`${method} ${path} → ${res.status}`, data, !res.ok);
+    return res.ok ? data : null;
+  } catch (e) { log(`${method} ${path}`, String(e), true); return null; }
+}
+
+async function createPres() {
+  const r = await call("POST", "/presentations", { title: val("title") });
+  if (r) { S.pid = r.id; document.getElementById("pid").textContent = r.id; }
+}
+
+async function interview() {
+  const r = await call("POST", `/presentations/${pid()}/interview/message`, { text: val("msg") });
+  if (r) { document.getElementById("msg").value = ""; log("AGENT SAYS", r.reply); }
+}
+
+async function proposeOutline() {
+  const r = await call("POST", `/presentations/${pid()}/outline/propose`);
+  if (r) {
+    document.getElementById("sections").textContent =
+      r.sections.map(s => s.id).join(", ");
+    if (r.sections[0]) document.getElementById("sec").value = r.sections[0].id;
+  }
+}
+
+async function getDeck() {
+  const r = await call("GET", `/presentations/${pid()}/deck`);
+  if (r) {
+    document.getElementById("slides").textContent =
+      r.slides.map(s => `${s.id}${s.approved ? "✓" : ""}`).join(", ");
+    if (r.slides[0]) {
+      document.getElementById("slideId").value = r.slides[0].id;
+      document.getElementById("curSlide").value = r.slides[0].id;
+    }
+  }
+}
+
+async function startTalk() {
+  const r = await call("POST", `/presentations/${pid()}/talks/start`);
+  if (r) { S.tkid = r.talk_id; document.getElementById("tkid").textContent = r.talk_id; }
+}
+
+async function pushTranscript() {
+  await call("POST", `/presentations/${pid()}/talks/${tkid()}/transcript`,
+    { text: val("speech"), current_slide_id: val("curSlide"), offset_seconds: 60 });
+}
+
+async function feedback() {
+  const r = await call("GET", `/presentations/${pid()}/deck`);
+  await call("POST", `/presentations/${pid()}/feedback`, {
+    version: r ? r.version : 1,
+    items: [{ slide_id: "", rating: "down", note: val("fbNote") }] });
+}
+</script>
+</body>
+</html>

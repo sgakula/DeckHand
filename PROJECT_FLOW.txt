@@ -1,0 +1,198 @@
+PROJECT: DECKHAND (working name)
+An agent that prepares, presents, and follows up on your pitch - end to end.
+
+HACKATHON: All Things Agentic Hackathon (Google / Devpost)
+TRACK: The Collaborative Partner (primary). Also targeting Best Multimodal UX and Best Architectural Design side prizes.
+
+ONE-LINE PITCH
+You tell it who you are presenting to. It interviews you and your teammates, builds the deck with you slide by slide using your real data, then sits in on the talk as a silent note-taker - tracking what you skipped, what you could not back up, and what the audience asked - and afterwards, in the background, exports the deck, emails attendees, schedules follow-ups, and remembers how you like to present so the next deck is better.
+
+DESIGN PRINCIPLE
+Build and edit BEFORE the talk, with the team. Never change slides DURING the talk. The agent's job while presenting is to listen, navigate, and take notes - nothing on screen changes unless the presenter asked for it in advance.
+
+THE USER AND THE CHORE
+Primary user: founders doing investor or customer pitches.
+Secondary user: students doing viva, project reviews, or seminar presentations.
+The chore being removed: the 6 to 10 hours around every presentation - gathering numbers from docs and sheets, building slides, rehearsing, then after the talk writing up notes, sending the deck, and chasing follow-ups. The agent owns all of that; the human only talks.
+
+WHY THIS IS AN AGENT AND NOT A CHATBOT
+- It asks before it acts (clarifying interview, outline approval gate, per-slide approval).
+- It pulls real data from the user's Drive / Docs / Sheets instead of hallucinating numbers.
+- It works with a team, not one person: multiple teammates edit and comment in the same session and the agent reconciles their input.
+- It listens during the talk and produces structured notes and follow-ups without being asked.
+- It acts in the real world: Google Slides export, Gmail send, Calendar / Tasks creation.
+- It runs the post-talk pipeline asynchronously on Cloud Run after the user closes the tab.
+- It keeps persistent memory of the user's and team's preferences across sessions and adapts.
+- It can regenerate variants of the deck on its own (branch for a different audience).
+
+
+END-TO-END FLOW
+
+PHASE 0 - SIGN IN AND CONTEXT
+1. User signs in with Google (Firebase Auth). Scopes requested: Drive read, Slides write, Gmail send, Calendar / Tasks write.
+2. Agent loads the user's preference profile from Firestore (empty on first run).
+3. User optionally connects source material: a Drive folder, specific Docs / Sheets, uploaded PDFs, images with short captions.
+
+PHASE 1 - INTERVIEW AND COLLABORATIVE DECK BUILDING (COLLABORATIVE PARTNER - THE CORE)
+This is where the agent leads, asks, builds, and adapts. Teammates can join the same session; everyone sees the same state in real time via Firestore.
+
+1a. Interview
+4. Intake agent (ADK, Gemini 3.5 Flash) runs a short guided interview. It asks one question at a time and skips anything it already knows from the profile:
+   - Who is the audience? (investors, customers, professors, team)
+   - How long do you have?
+   - What is the one decision or outcome you want from them?
+   - What must be included? What must be avoided?
+   - Tone: formal, conversational, technical?
+   - Who is on the team for this deck? (invites teammates into the session)
+5. Context agent reads the connected Drive / Docs / Sheets and extracts candidate facts, metrics, and charts with source references.
+6. Planner agent proposes an outline: ordered sections, key claim per section, suggested supporting data with source, estimated time per section.
+7. Outline is shown as editable cards. Anyone in the session can reorder, edit, delete, add, or comment. The presenter presses Approve Outline. This is the first human-in-the-loop gate.
+
+1b. Slide building, one section at a time
+8. Builder agent generates slides for the first section from the approved outline and the extracted data. Each slide is rendered as an HTML / CSS template (hero, cards, metrics, quotes, diagrams, timelines) with Nano Banana imagery generated asynchronously and swapped in only if the slide has not changed since the request was made.
+9. The team reviews the slides together. Interaction is conversational and multimodal:
+   - Voice or text: "make this a two-column comparison", "use the Q2 number from the revenue sheet", "too wordy".
+   - Direct manipulation: drag to reorder, inline text edits, pick a different template.
+   - Teammate comments: "legal will not like this claim" - the agent sees the comment and proposes a fix.
+10. The agent asks clarifying questions when input conflicts or is ambiguous: "Two teammates suggested different opening slides - which framing do you want?" It does not guess silently.
+11. Every accepted slide is marked Approved. Every rejection or edit is recorded as feedback (what was changed, from what, to what). This feedback stream is what trains the preference profile in Phase 4.
+12. Repeat for each section. The agent also runs a dry-run check before finishing: estimated speaking time per slide vs the time budget, claims without a source, sections from the outline that have no slide yet.
+13. Speaker notes: for every slide the agent drafts short presenter notes from the transcript of the building conversation, so the presenter has the reasoning behind each slide in front of them.
+14. Presenter presses Lock Deck. The deck becomes version N, immutable. No slide content changes after this point until the talk is over.
+
+PHASE 2 - THE TALK (NOTE-TAKER - LISTEN ONLY, NEVER EDIT)
+The deck is locked. The agent is in the room as a listener. Nothing on screen changes unless it is plain navigation.
+
+15. Presenter presses Present. Slides open fullscreen with speaker notes on a second view. Browser opens a session to the Gemini Live API through the backend (credentials stay server-side) with the locked deck and outline as context.
+16. Optional hands-free navigation: the agent advances to the next slide when it hears the presenter move to the next topic. This can be turned off; the presenter can always use the keyboard. Navigation is the only thing the agent is allowed to do on screen.
+17. Note-taker agent listens continuously and records, with timestamps and slide references:
+   - Slides or outline points that were skipped or rushed.
+   - Claims made out loud that are not supported by a source in the connected data, or that differ from the number on the slide.
+   - Audience questions, with the slide they were asked on, and whether they were answered.
+   - Anything phrased as "I will send / follow up / check / get back to you".
+   - Objections or pushback, and how the presenter responded.
+18. A quiet pace indicator shows planned vs actual time per section on the presenter view only (never on the audience screen).
+19. Presenter presses Stop. The session transcript and the structured notes are written to Firestore under the session id, linked to deck version N.
+
+PHASE 3 - AFTER THE TALK (TASKMASTER - ASYNCHRONOUS, BACKGROUND)
+20. Stopping the session publishes a job to Pub/Sub. The user can close the tab.
+21. A Cloud Run worker picks up the job and runs the post-talk pipeline with ADK:
+   a. Exporter agent converts the locked HTML deck into a real Google Slides deck in the user's Drive (and a PDF / PPTX copy). Export can also be run earlier, right after Lock Deck, so the presenter has a backup file before the talk.
+   b. Summary agent writes a one-page recap from the notes: what was presented, key numbers with sources, audience questions and answers, open questions, commitments made, where the talk diverged from the deck.
+   c. Distribution agent emails the deck plus recap to the attendee list via Gmail (attendees supplied during the interview or pulled from the Calendar event) and a separate internal recap to the team with the note-taker's findings.
+   d. Follow-up agent creates Calendar events / Google Tasks for every commitment the note-taker captured, with the relevant slide linked and assigned to the teammate who owns that topic.
+   e. Version agent attaches the talk transcript and notes to deck version N in Firestore and drafts suggested edits for version N+1 based on what was skipped, what got pushback, and what was asked.
+22. User receives an email: "Your deck, recap, and 3 follow-ups are ready. 2 suggested edits for next time."
+
+PHASE 4 - FEEDBACK AND MEMORY (ADAPTATION)
+23. Feedback comes from three streams, all stored against the user and the team:
+   - Build-time feedback captured automatically in Phase 1 (every edit, rejection, and template choice).
+   - Explicit post-talk feedback per slide and overall: thumbs up / down plus short notes such as "too many metric slides", "I always open with a story", "never use stock-style imagery".
+   - Talk-time evidence from the note-taker: slides that were consistently skipped or rushed, questions that keep coming up.
+24. Feedback agent converts all three into preference entries in Firestore: preferred structure, slide density, visual style, pacing, sections to always include or avoid, recurring audience questions to pre-empt.
+25. On the next session, the Intake agent skips questions it already knows, the Planner applies the learned structure, the Builder applies the learned visual style and pre-empts recurring questions with a slide. The demo should show a second run being visibly shorter and more tailored.
+
+PHASE 5 - VERSIONING AND BRANCHING (AGENT-DRIVEN)
+26. Every Lock Deck creates an immutable version. The user can open any version, compare two versions, see which talk each version was used in, and revert.
+27. Branch: the user says "make a 5-minute customer version of this deck". The agent regenerates a variant from the same source material and notes, with a different audience, length, and tone, and stores it as a branch. The team reviews it in Phase 1b and locks it.
+28. Suggested edits from the post-talk pipeline (step 21e) can be accepted in one click to create version N+1.
+
+
+ARCHITECTURE (TEXT)
+
+Frontend (Next.js on Cloud Run or Firebase Hosting)
+  - Interview chat UI, outline cards with approve gate
+  - Collaborative deck builder: slide canvas (HTML / CSS templates), multi-user presence and comments, voice and text commands, drag to reorder, per-slide approve
+  - Presenter mode: fullscreen slides, speaker notes view, live notes panel, pace indicator, mic selection
+  - Version history and branch UI, per-slide feedback controls
+  - Realtime listeners on Firestore for session state, teammate edits, and pipeline progress
+
+Backend API (Cloud Run, Python, ADK)
+  - Auth and token exchange for Google APIs
+  - Gemini Live session broker (WebSocket proxy, keys never leave the server) used for voice commands in the builder and for listening during the talk
+  - Intake, Context, Planner, Builder, Note-taker agents
+  - Publishes post-talk jobs to Pub/Sub
+
+Background Worker (Cloud Run, Python, ADK)
+  - Subscribes to Pub/Sub
+  - Exporter, Summary, Distribution, Follow-up, Version, Feedback agents
+  - Retries with idempotency keys so a failed step does not double-send email
+
+Data and Infra (Google Cloud)
+  - Firestore: users/{uid}/profile, teams/{tid}/profile, presentations/{pid}/{outline, members}, presentations/{pid}/versions/{vid}/slides/{sid}, presentations/{pid}/buildSessions/{bsid}/{messages, edits, comments}, presentations/{pid}/talks/{tkid}/{transcript, notes}, jobs/{jobId}
+  - Cloud Storage: uploaded images, exported PDF / PPTX
+  - Pub/Sub: post-talk job queue
+  - Secret Manager: Gemini API key, OAuth client secret
+  - Cloud Trace / Logging via OpenTelemetry: every agent step traced end to end
+  - Cloud Scheduler (optional): reminder before a scheduled pitch to rehearse, and nudge if follow-ups are still open
+
+Models
+  - Gemini 3.5 Flash: all text agents (intake, planning, slide building, note-taking, summary, feedback)
+  - Gemini Live API: voice commands while building, and listening / navigation / note-taking during the talk
+  - Nano Banana (Gemini image model): slide imagery generated at build time, with a stale-response guard
+  - Optional bonus: Veo for a short animated title slide, Lyria for intro music
+
+Data flow in one line
+  Interview + Drive data -> outline (approve) -> Builder agent + team edits -> locked version N (Firestore) -> Present: mic -> Gemini Live -> notes (Firestore) -> Stop -> Pub/Sub -> Cloud Run worker -> Slides / Gmail / Calendar / Tasks -> recap + suggested edits + preference profile
+
+
+HOW IT MAPS TO THE JUDGING CRITERIA
+
+Innovation and Operational Utility (40 percent)
+  - Removes the full before-and-after chore, not just slide generation.
+  - Note-taker produces follow-ups, recap, and next-version edits without being asked.
+  - Acts in the real world: Slides, Gmail, Calendar, Tasks.
+  - Runs the heavy lifting asynchronously after the user leaves.
+
+Architectural Discipline (30 percent)
+  - Decoupled frontend / API / worker with Pub/Sub between them.
+  - Hard separation between build time (agent may edit) and talk time (agent may only listen and navigate).
+  - State and memory in Firestore with explicit immutable versioning and multi-user sessions.
+  - Secrets in Secret Manager, Google credentials server-side only.
+  - Idempotent jobs, retries, stale-image discarding, OpenTelemetry traces.
+
+Demo and Production Readiness (30 percent)
+  - Visual demo: two people and the agent building a deck together by voice and drag, then the notes panel filling up during a real talk.
+  - Clear proof on Google Cloud: Cloud Run dashboard, Firestore documents, Pub/Sub metrics, the Slides file appearing in Drive, the email arriving.
+  - Reproducible README with gcloud deploy script.
+
+
+DEMO VIDEO SCRIPT (about 4 minutes, single unedited take)
+0:00 - 0:25  Problem: a founder or student describing the hours around a pitch - building slides with the team, then chasing follow-ups.
+0:25 - 1:00  Interview: agent asks 3 questions, pulls numbers from a Sheet, proposes outline, presenter approves.
+1:00 - 2:00  Build together: a teammate joins, says "make this a comparison and use the Q2 revenue number", drags a slide, leaves a comment; the agent applies edits, asks one clarifying question, flags a claim with no source. Lock Deck.
+2:00 - 2:45  The talk: present fullscreen, skip a slide on purpose, say an unsupported number, a teammate asks a question from the audience. Show the notes panel on the presenter view capturing all three. Stop.
+2:45 - 3:20  After: Cloud Run console and Pub/Sub, worker logs, then the Slides deck in Drive, the recap email in Gmail, the follow-up in Calendar, and the suggested edits for version N+1.
+3:20 - 3:45  Memory: feedback "fewer metric slides", start a second session, agent skips known questions and applies the preference.
+3:45 - 4:00  Branch: "make a 5-minute customer version" - variant appears in the builder. Close on the architecture diagram.
+
+
+TEAM SPLIT (4 developers)
+Dev A - Agents: ADK agents (intake, context, planner, builder, note-taker, post-talk pipeline), prompt quality, tool schemas for slide templates and note structure.
+Dev B - Cloud and Backend: Cloud Run services, Gemini Live broker, Pub/Sub, Firestore schema and security rules for multi-user sessions, Secret Manager, OpenTelemetry, deploy scripts.
+Dev C - Frontend: Next.js interview and outline UI, collaborative slide builder (templates, presence, comments, voice commands, drag), presenter mode with notes panel, version and branch UI, feedback controls.
+Dev D - Integrations and Submission: Slides / Gmail / Calendar / Tasks APIs, preference memory logic, architecture diagram, README spin-up steps, demo video, dev.to post, LinkedIn post with #AllThingsAgenticHackathon.
+
+
+BUILD ORDER (always have something demoable)
+1. Firestore schema agreed and Cloud Run skeleton deployed (hour 0 to 4).
+2. Interview -> outline -> approve working end to end.
+3. Builder agent -> HTML slide templates -> single-user edit loop -> Lock Deck. This is the core; get it solid before anything else.
+4. Multi-user presence, comments, and voice commands in the builder (Gemini Live for voice).
+5. Presenter mode + note-taker on Gemini Live. Highest technical risk in the project; start in parallel on day one.
+6. Stop -> Pub/Sub -> worker -> Google Slides export. First full end-to-end run.
+7. Gmail send, Calendar / Tasks creation, recap, suggested edits.
+8. Nano Banana slide imagery with stale-response guard.
+9. Feedback -> preference profile -> second-run adaptation.
+10. Versions and branching.
+11. Feature freeze at hour 36. Video, diagram, README, blog, social post.
+
+If time runs short, cut in this order: branching, Nano Banana imagery, hands-free navigation. Never cut the note-taker or the post-talk pipeline - they are the agentic proof.
+
+
+ORIGINALITY NOTE
+Voice-driven slide tools such as ZeroPrep inspired the idea of speaking to build slides. This project deliberately takes the opposite approach during the talk - slides are locked and the agent only listens - and is a different product: an agent that owns the full before-and-after workflow (team interview, data grounding, collaborative building with approval gates, note-taking, export, distribution, follow-ups, memory, and versioning), built from scratch on Gemini, ADK, and Google Cloud. State this plainly in the write-up and the README.
+
+
+FORM ANSWER (credit request)
+Track: The Collaborative Partner. An agent for founders and students that interviews you and your teammates about the audience and goal, builds the deck with the team slide by slide from your real Drive / Sheets data with approval at every step, then listens during the talk using the Gemini Live API as a note-taker - capturing skipped points, unsupported claims, and audience questions - and runs a background pipeline on Cloud Run + Pub/Sub + Firestore that exports to Google Slides, emails attendees, creates follow-up tasks, suggests edits for the next version, and learns your presenting preferences so every next deck adapts to you.

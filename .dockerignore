@@ -1,0 +1,37 @@
+# Applies to the WORKER build (context = repo root, see deploy/cloudbuild-worker.yaml).
+# Keep only what worker/Dockerfile needs: worker/ plus the four shared backend modules.
+__pycache__/
+**/__pycache__/
+*.pyc
+**/.venv/
+**/venv/
+.pytest_cache/
+.env
+**/*.env
+!**/*.env.example
+deploy/
+frontend/
+node_modules/
+README.md
+PROJECT_FLOW.txt
+firestore.rules
+.git/
+.gitignore
+.vscode/
+.idea/
+# Exclude the API service's app except the shared modules the worker copies in:
+backend/Dockerfile
+backend/.dockerignore
+backend/requirements.txt
+backend/app/agents/
+backend/app/routers/
+backend/app/main.py
+backend/app/deps.py
+backend/app/oauth.py
+backend/app/pubsub.py
+backend/app/tracing.py
+# Worker-local synced copies (Docker copies fresh ones from backend/):
+worker/app/schemas.py
+worker/app/config.py
+worker/app/firestore.py
+worker/app/google_apis.py

@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Secrets & local config — never commit
+.env
+*.env
+!*.env.example
+!.env.example
+deploy/vars.env
+*service-account*.json
+*credentials*.json
+client_secret*.json
+
+# Local copies synced from backend/ (Docker copies them at build time)
+worker/app/schemas.py
+worker/app/config.py
+worker/app/firestore.py
+worker/app/google_apis.py
+
+# Node / frontend (when added)
+node_modules/
+.next/
+dist/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs & scratch
+*.log
+.scratch/
+deckhand/*

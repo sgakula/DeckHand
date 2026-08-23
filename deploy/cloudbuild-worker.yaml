@@ -1,0 +1,7 @@
+# Build the worker image with the REPO ROOT as context so worker/Dockerfile can
+# copy the shared modules out of backend/app/.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "worker/Dockerfile", "-t", "gcr.io/$PROJECT_ID/deckhand-worker", "."]
+images:
+  - gcr.io/$PROJECT_ID/deckhand-worker
