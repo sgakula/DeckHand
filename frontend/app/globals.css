@@ -1,0 +1,524 @@
+/* ==========================================================================
+   Deckhand design system
+   Tokens first, then reset, then base elements. Component styling lives in
+   CSS modules next to each component; only genuinely global rules go here.
+   ========================================================================== */
+
+:root {
+  /* ---- palette -------------------------------------------------------- */
+  --gray-50: #f8f9fa;
+  --gray-100: #f1f3f4;
+  --gray-150: #eceff1;
+  --gray-200: #e8eaed;
+  --gray-300: #dadce0;
+  --gray-400: #bdc1c6;
+  --gray-500: #9aa0a6;
+  --gray-600: #80868b;
+  --gray-700: #5f6368;
+  --gray-800: #3c4043;
+  --gray-900: #202124;
+  --gray-950: #17181a;
+
+  --blue-50: #e8f0fe;
+  --blue-100: #d2e3fc;
+  --blue-200: #aecbfa;
+  --blue-500: #4285f4;
+  --blue-600: #1a73e8;
+  --blue-700: #1967d2;
+  --blue-800: #185abc;
+
+  --green-50: #e6f4ea;
+  --green-600: #1e8e3e;
+  --green-700: #188038;
+
+  --amber-50: #fef7e0;
+  --amber-600: #f9ab00;
+  --amber-800: #b06000;
+
+  --red-50: #fce8e6;
+  --red-600: #d93025;
+  --red-700: #c5221f;
+
+  --purple-50: #f3e8fd;
+  --purple-600: #8430ce;
+
+  --teal-50: #e4f7fb;
+  --teal-600: #12808f;
+
+  /* ---- semantic (light) ----------------------------------------------- */
+  --bg: #ffffff;
+  --bg-sunken: var(--gray-50);
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-hover: var(--gray-50);
+  --surface-active: var(--gray-100);
+  --surface-inset: var(--gray-50);
+
+  --border: var(--gray-300);
+  --border-subtle: var(--gray-200);
+  --border-strong: var(--gray-400);
+
+  --text: var(--gray-900);
+  --text-secondary: var(--gray-700);
+  --text-tertiary: var(--gray-600);
+  --text-disabled: var(--gray-500);
+  --text-inverse: #ffffff;
+
+  --accent: var(--blue-600);
+  --accent-hover: var(--blue-700);
+  --accent-active: var(--blue-800);
+  --accent-subtle: var(--blue-50);
+  --accent-subtle-hover: var(--blue-100);
+  --accent-border: var(--blue-200);
+  --accent-text: var(--blue-700);
+  --on-accent: #ffffff;
+
+  --success: var(--green-600);
+  --success-subtle: var(--green-50);
+  --success-text: var(--green-700);
+
+  --warning: var(--amber-600);
+  --warning-subtle: var(--amber-50);
+  --warning-text: var(--amber-800);
+
+  --danger: var(--red-600);
+  --danger-subtle: var(--red-50);
+  --danger-text: var(--red-700);
+
+  --info: var(--purple-600);
+  --info-subtle: var(--purple-50);
+
+  --focus-ring: var(--blue-600);
+  --overlay: rgb(32 33 36 / 0.5);
+
+  /* ---- elevation ------------------------------------------------------- */
+  --shadow-1: 0 1px 2px 0 rgb(60 64 67 / 0.14), 0 1px 3px 1px rgb(60 64 67 / 0.06);
+  --shadow-2: 0 1px 2px 0 rgb(60 64 67 / 0.16), 0 2px 6px 2px rgb(60 64 67 / 0.08);
+  --shadow-3: 0 4px 8px 3px rgb(60 64 67 / 0.1), 0 1px 3px rgb(60 64 67 / 0.16);
+  --shadow-4: 0 8px 24px 4px rgb(60 64 67 / 0.14), 0 2px 6px rgb(60 64 67 / 0.14);
+
+  /* ---- shape ----------------------------------------------------------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 999px;
+
+  /* ---- spacing (4px base) ---------------------------------------------- */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s7: 32px;
+  --s8: 40px;
+  --s9: 48px;
+  --s10: 64px;
+  --s11: 80px;
+  --s12: 96px;
+
+  /* ---- type ------------------------------------------------------------ */
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 32px;
+  --text-4xl: 40px;
+
+  /* ---- motion ----------------------------------------------------------- */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 320ms;
+
+  /* ---- layout ----------------------------------------------------------- */
+  --header-h: 56px;
+  --rail-w: 248px;
+}
+
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg: #16181c;
+    --bg-sunken: #101216;
+    --surface: #1e2127;
+    --surface-raised: #23262d;
+    --surface-hover: #262a31;
+    --surface-active: #2c3038;
+    --surface-inset: #191c21;
+
+    --border: #333840;
+    --border-subtle: #282c33;
+    --border-strong: #454b55;
+
+    --text: #e8eaed;
+    --text-secondary: #b8bcc4;
+    --text-tertiary: #949aa4;
+    --text-disabled: #6b7280;
+    --text-inverse: #16181c;
+
+    --accent: #7cacf8;
+    --accent-hover: #9ec1fa;
+    --accent-active: #b6d1fb;
+    --accent-subtle: #1c2b45;
+    --accent-subtle-hover: #23375a;
+    --accent-border: #2f4a75;
+    --accent-text: #a8c7fa;
+    --on-accent: #16181c;
+
+    --success: #6dd58c;
+    --success-subtle: #16291d;
+    --success-text: #81c995;
+
+    --warning: #fdd663;
+    --warning-subtle: #2e2513;
+    --warning-text: #fdd663;
+
+    --danger: #f28b82;
+    --danger-subtle: #33201e;
+    --danger-text: #f28b82;
+
+    --info: #d7aefb;
+    --info-subtle: #2a1f38;
+
+    --focus-ring: #7cacf8;
+    --overlay: rgb(0 0 0 / 0.65);
+
+    --shadow-1: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 1px 3px 1px rgb(0 0 0 / 0.2);
+    --shadow-2: 0 1px 2px 0 rgb(0 0 0 / 0.45), 0 2px 6px 2px rgb(0 0 0 / 0.25);
+    --shadow-3: 0 4px 8px 3px rgb(0 0 0 / 0.35), 0 1px 3px rgb(0 0 0 / 0.45);
+    --shadow-4: 0 8px 24px 4px rgb(0 0 0 / 0.45), 0 2px 6px rgb(0 0 0 / 0.4);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #16181c;
+  --bg-sunken: #101216;
+  --surface: #1e2127;
+  --surface-raised: #23262d;
+  --surface-hover: #262a31;
+  --surface-active: #2c3038;
+  --surface-inset: #191c21;
+
+  --border: #333840;
+  --border-subtle: #282c33;
+  --border-strong: #454b55;
+
+  --text: #e8eaed;
+  --text-secondary: #b8bcc4;
+  --text-tertiary: #949aa4;
+  --text-disabled: #6b7280;
+  --text-inverse: #16181c;
+
+  --accent: #7cacf8;
+  --accent-hover: #9ec1fa;
+  --accent-active: #b6d1fb;
+  --accent-subtle: #1c2b45;
+  --accent-subtle-hover: #23375a;
+  --accent-border: #2f4a75;
+  --accent-text: #a8c7fa;
+  --on-accent: #16181c;
+
+  --success: #6dd58c;
+  --success-subtle: #16291d;
+  --success-text: #81c995;
+
+  --warning: #fdd663;
+  --warning-subtle: #2e2513;
+  --warning-text: #fdd663;
+
+  --danger: #f28b82;
+  --danger-subtle: #33201e;
+  --danger-text: #f28b82;
+
+  --info: #d7aefb;
+  --info-subtle: #2a1f38;
+
+  --focus-ring: #7cacf8;
+  --overlay: rgb(0 0 0 / 0.65);
+
+  --shadow-1: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 1px 3px 1px rgb(0 0 0 / 0.2);
+  --shadow-2: 0 1px 2px 0 rgb(0 0 0 / 0.45), 0 2px 6px 2px rgb(0 0 0 / 0.25);
+  --shadow-3: 0 4px 8px 3px rgb(0 0 0 / 0.35), 0 1px 3px rgb(0 0 0 / 0.45);
+  --shadow-4: 0 8px 24px 4px rgb(0 0 0 / 0.45), 0 2px 6px rgb(0 0 0 / 0.4);
+}
+
+/* ==========================================================================
+   Reset
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+}
+
+img,
+picture,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: var(--text-2xl);
+}
+h2 {
+  font-size: var(--text-xl);
+}
+h3 {
+  font-size: var(--text-lg);
+}
+
+p {
+  text-wrap: pretty;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ==========================================================================
+   Focus — visible for keyboards, quiet for mice
+   ========================================================================== */
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+::selection {
+  background: var(--accent-subtle);
+  color: var(--text);
+}
+
+/* ==========================================================================
+   Scrollbars — thin and unobtrusive
+   ========================================================================== */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-400) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-tertiary) 40%, transparent);
+  border-radius: var(--radius-full);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-tertiary) 65%, transparent);
+  background-clip: content-box;
+}
+
+/* ==========================================================================
+   Animation
+   ========================================================================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   Small global utilities (used across many components)
+   ========================================================================== */
+
+.u-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.u-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.u-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.u-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

@@ -1,0 +1,407 @@
+/* ==========================================================================
+   SlideCanvas — a real 16:9 slide rendered from the Slide block model.
+   Every internal size is in cqw so one component serves both the 180px
+   thumbnail and the full-bleed presenter view with identical proportions.
+   ========================================================================== */
+
+.frame {
+  container-type: size;
+  container-name: slide;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--slide-bg);
+  color: var(--slide-fg);
+  isolation: isolate;
+
+  /* Slides keep their own light palette in both app themes: a deck is a document,
+     not chrome, and it must look the same as it will on the projector. */
+  --slide-bg: #ffffff;
+  --slide-fg: #1f2328;
+  --slide-muted: #5f6368;
+  --slide-accent: #1a73e8;
+  --slide-rule: #e3e6ea;
+  --slide-tint: #f5f7fa;
+}
+
+.bordered {
+  border: 1px solid var(--border-subtle);
+}
+
+.pad {
+  position: absolute;
+  inset: 0;
+  padding: 6cqw 7cqw;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 3cqw;
+  z-index: 1;
+}
+
+/* ---- shared type scale ---- */
+
+.title {
+  font-size: 5cqw;
+  line-height: 1.14;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.titleSm {
+  font-size: 4.2cqw;
+}
+
+.text {
+  font-size: 2.7cqw;
+  line-height: 1.45;
+  color: var(--slide-muted);
+  text-wrap: pretty;
+}
+
+.heading {
+  font-size: 3cqw;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.accentRule {
+  width: 9cqw;
+  height: 0.7cqw;
+  border-radius: 1cqw;
+  background: var(--slide-accent);
+  flex: none;
+}
+
+/* ---- bullets ---- */
+
+.bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 1.9cqw;
+  min-height: 0;
+  margin-top: 0.5cqw;
+}
+
+.bullet {
+  display: flex;
+  gap: 2.2cqw;
+  align-items: baseline;
+  font-size: 2.8cqw;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.bulletDot {
+  width: 1.1cqw;
+  height: 1.1cqw;
+  border-radius: 50%;
+  background: var(--slide-accent);
+  flex: none;
+  transform: translateY(-0.35cqw);
+}
+
+/* ---- hero ---- */
+
+.hero {
+  justify-content: center;
+  gap: 2cqw;
+}
+
+.heroTitle {
+  font-size: 5.4cqw;
+  max-width: 82%;
+}
+
+.heroText {
+  font-size: 2.8cqw;
+  max-width: 74%;
+}
+
+/* ---- two column ---- */
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5cqw;
+  flex: 1;
+  min-height: 0;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.8cqw;
+  min-width: 0;
+}
+
+.columnRule {
+  width: 6cqw;
+  height: 0.55cqw;
+  border-radius: 1cqw;
+  background: var(--slide-accent);
+  opacity: 0.85;
+}
+
+/* ---- metrics ---- */
+
+.metrics {
+  display: flex;
+  gap: 3cqw;
+  flex: 1;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.metric {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1cqw;
+  padding: 3cqw;
+  border-radius: 1.6cqw;
+  background: var(--slide-tint);
+  min-width: 0;
+  position: relative;
+}
+
+.metricValue {
+  font-size: 6.4cqw;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--slide-accent);
+  overflow-wrap: anywhere;
+}
+
+.metricLabel {
+  font-size: 2.5cqw;
+  line-height: 1.35;
+  color: var(--slide-muted);
+  text-wrap: pretty;
+}
+
+.metricSource {
+  font-size: 1.9cqw;
+  color: var(--slide-muted);
+  opacity: 0.75;
+  margin-top: 0.4cqw;
+  display: flex;
+  align-items: center;
+  gap: 0.8cqw;
+}
+
+/* ---- quote ---- */
+
+.quoteWrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2.5cqw;
+}
+
+.quoteMark {
+  font-size: 12cqw;
+  line-height: 0.6;
+  color: var(--slide-accent);
+  opacity: 0.28;
+  font-family: Georgia, "Times New Roman", serif;
+  height: 5cqw;
+}
+
+.quoteText {
+  font-size: 3.9cqw;
+  line-height: 1.35;
+  font-weight: 450;
+  letter-spacing: -0.015em;
+  text-wrap: pretty;
+  max-width: 88%;
+}
+
+.quoteAttrib {
+  font-size: 2.7cqw;
+  color: var(--slide-muted);
+}
+
+/* ---- diagram ---- */
+
+.diagram {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 1.6cqw;
+  flex-wrap: wrap;
+}
+
+.node {
+  flex: 1 1 0;
+  min-width: 18cqw;
+  padding: 2.4cqw 2cqw;
+  border-radius: 1.4cqw;
+  background: var(--slide-tint);
+  border: 0.22cqw solid var(--slide-rule);
+  font-size: 2.6cqw;
+  line-height: 1.3;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.nodeArrow {
+  color: var(--slide-accent);
+  font-size: 3cqw;
+  flex: none;
+  opacity: 0.7;
+}
+
+/* ---- timeline ---- */
+
+.timeline {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding-top: 3cqw;
+}
+
+.timelineLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4.6cqw;
+  height: 0.35cqw;
+  background: var(--slide-rule);
+  border-radius: 1cqw;
+}
+
+.timelineItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.6cqw;
+  text-align: center;
+  position: relative;
+  padding: 0 1cqw;
+}
+
+.timelineDot {
+  width: 2.2cqw;
+  height: 2.2cqw;
+  border-radius: 50%;
+  background: var(--slide-accent);
+  border: 0.5cqw solid var(--slide-bg);
+  box-shadow: 0 0 0 0.28cqw var(--slide-accent);
+  z-index: 1;
+}
+
+.timelineLabel {
+  font-size: 2.4cqw;
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+/* ---- image ---- */
+
+.bgImage {
+  position: absolute;
+  inset: 0;
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    100deg,
+    rgb(12 16 22 / 0.82) 0%,
+    rgb(12 16 22 / 0.62) 45%,
+    rgb(12 16 22 / 0.28) 100%
+  );
+}
+
+.onImage {
+  --slide-fg: #ffffff;
+  --slide-muted: rgb(255 255 255 / 0.82);
+  --slide-accent: #8ab4f8;
+}
+
+.imagePending {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      var(--slide-tint) 0 2cqw,
+      #eef1f5 2cqw 4cqw
+    );
+  display: grid;
+  place-items: center;
+  color: #9aa0a6;
+}
+
+.pendingBadge {
+  display: flex;
+  align-items: center;
+  gap: 1cqw;
+  font-size: 2.2cqw;
+  padding: 1cqw 2cqw;
+  border-radius: 1cqw;
+  background: rgb(255 255 255 / 0.9);
+}
+
+/* ---- closing ---- */
+
+.closing {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 2.6cqw;
+}
+
+.closingTitle {
+  font-size: 5.2cqw;
+  max-width: 86%;
+}
+
+/* ---- unsourced marker ---- */
+
+.unsourced {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7cqw;
+  font-size: 1.9cqw;
+  padding: 0.4cqw 1.1cqw;
+  border-radius: 0.8cqw;
+  background: #fef0e6;
+  color: #b06000;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.metric .unsourced {
+  position: absolute;
+  top: 1.4cqw;
+  right: 1.4cqw;
+}
+
+/* ---- empty ---- */
+
+.blank {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #b8bcc2;
+  font-size: 3cqw;
+}

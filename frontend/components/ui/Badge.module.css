@@ -1,0 +1,67 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: 2px var(--s2);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.pill {
+  border-radius: var(--radius-full);
+  padding: 2px var(--s3);
+}
+
+.neutral {
+  background: var(--surface-inset);
+  color: var(--text-tertiary);
+  border-color: var(--border-subtle);
+}
+
+.accent {
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+}
+
+.success {
+  background: var(--success-subtle);
+  color: var(--success-text);
+}
+
+.warning {
+  background: var(--warning-subtle);
+  color: var(--warning-text);
+}
+
+.danger {
+  background: var(--danger-subtle);
+  color: var(--danger-text);
+}
+
+.info {
+  background: var(--info-subtle);
+  color: var(--info);
+}
+
+.outline {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-tertiary);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.live .dot {
+  animation: pulseDot 1.4s ease-in-out infinite;
+}

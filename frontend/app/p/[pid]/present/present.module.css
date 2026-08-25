@@ -1,0 +1,257 @@
+/* ---- pre-flight ---- */
+
+.ready {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+
+.readyRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+  flex-wrap: wrap;
+}
+
+.readyText {
+  flex: 1;
+  min-width: 240px;
+  font-size: var(--text-base);
+  color: var(--text-tertiary);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.rules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.rule {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.ruleIcon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+/* ---- live bar ---- */
+
+.liveBar {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius-md);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: var(--s5);
+  flex-wrap: wrap;
+  position: sticky;
+  top: calc(var(--header-h) + var(--s2));
+  z-index: 20;
+  backdrop-filter: blur(8px);
+}
+
+.timer {
+  font-size: var(--text-xl);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.timerOver {
+  color: var(--warning-text);
+}
+
+.barMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-size: var(--text-base);
+  color: var(--text-tertiary);
+}
+
+.barSpacer {
+  flex: 1;
+}
+
+.barActions {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+}
+
+/* ---- stage ---- */
+
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--s5);
+  align-items: start;
+}
+
+@media (max-width: 1080px) {
+  .stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.stageMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  min-width: 0;
+}
+
+.current {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-3);
+}
+
+.navRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.navSpacer {
+  flex: 1;
+}
+
+.position {
+  font-size: var(--text-base);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.nextPeek {
+  display: flex;
+  gap: var(--s3);
+  align-items: center;
+  padding: var(--s3);
+  border-radius: var(--radius);
+  background: var(--surface-inset);
+}
+
+.nextLabel {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  flex: none;
+  width: 44px;
+}
+
+.nextThumb {
+  width: 132px;
+  flex: none;
+}
+
+.nextTitle {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  min-width: 0;
+  text-wrap: pretty;
+}
+
+.notes {
+  font-size: var(--text-lg);
+  line-height: 1.7;
+  color: var(--text);
+  text-wrap: pretty;
+  white-space: pre-wrap;
+}
+
+/* ---- side panel ---- */
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  position: sticky;
+  top: calc(var(--header-h) + var(--s10));
+}
+
+.transcript {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--s2);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.interim {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.noteList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.note {
+  display: flex;
+  gap: var(--s3);
+  padding: var(--s3);
+  border-radius: var(--radius);
+  background: var(--surface-inset);
+  animation: riseIn var(--dur) var(--ease-out);
+}
+
+.noteIcon {
+  flex: none;
+  margin-top: 1px;
+}
+
+.noteBody {
+  min-width: 0;
+  flex: 1;
+}
+
+.noteText {
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text);
+  text-wrap: pretty;
+}
+
+.noteMeta {
+  margin-top: var(--s1);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.micRow {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pushRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}

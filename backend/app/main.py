@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import oauth
 from .config import settings
 from .routers import (
-    feedback, interview, live, outline, presentations, slides, talks, versions,
+    feedback, interview, jobs, live, outline, presentations, slides, talks, versions,
 )
 from .tracing import setup_tracing
 
@@ -33,6 +33,7 @@ app.include_router(talks.router)
 app.include_router(live.router)
 app.include_router(feedback.router)
 app.include_router(versions.router)
+app.include_router(jobs.router)
 
 
 @app.get("/healthz")

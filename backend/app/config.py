@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     dev_fake_uid: str = ""
     enable_tracing: bool = False
 
+    # Local dev only: swap Firestore/Pub/Sub for on-disk stand-ins so the stack runs
+    # without Application Default Credentials. NEVER set these in prod.
+    local_store: bool = False
+    local_store_path: str = ".localstore.json"
+    worker_url: str = ""        # local Pub/Sub stand-in posts job envelopes here
+
 
 @lru_cache
 def settings() -> Settings:
