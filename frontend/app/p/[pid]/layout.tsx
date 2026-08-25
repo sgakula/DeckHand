@@ -4,6 +4,7 @@ import { useParams, usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { PhaseRail } from "@/components/PhaseRail";
+import { ViewTransition } from "@/components/ViewTransition";
 import { WorkspaceProvider, useWorkspace } from "@/components/WorkspaceProvider";
 import { Button } from "@/components/ui/Button";
 import { Alert, LoadingBlock } from "@/components/ui/Status";
@@ -48,7 +49,17 @@ function Shell({ children }: { children: ReactNode }) {
               <LoadingBlock label="Opening presentation…" />
             </div>
           ) : (
-            <div className={styles.narrow}>{children}</div>
+            // Keyed by phase so each navigation genuinely unmounts and remounts
+            // the subtree — a ViewTransition that persists would only ever
+            // report an update, and enter/exit would never fire.
+            <ViewTransition
+              key={activeId}
+              enter={{ "nav-forward": "nav-forward", "nav-back": "nav-back", default: "none" }}
+              exit={{ "nav-forward": "nav-forward", "nav-back": "nav-back", default: "none" }}
+              default="none"
+            >
+              <div className={styles.narrow}>{children}</div>
+            </ViewTransition>
           )}
         </main>
       </div>

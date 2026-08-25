@@ -118,7 +118,11 @@ export function SlideCanvas({
                 {showProvenance && !m.source_ref && <UnsourcedTag />}
                 <div className={styles.metricValue}>{m.value || "—"}</div>
                 <div className={styles.metricLabel}>{m.text}</div>
-                {m.source_ref && <div className={styles.metricSource}>{m.source_ref}</div>}
+                {m.source_ref && (
+                  <div className={styles.metricSource} title={m.source_ref}>
+                    {m.source_ref}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -146,7 +150,8 @@ export function SlideCanvas({
     }
 
     case "diagram": {
-      const nodes = pick(blocks, "diagram_node", "bullet", "text").slice(0, 5);
+      // Four is the most that stays legible in one non-wrapping row.
+      const nodes = pick(blocks, "diagram_node", "bullet", "text").slice(0, 4);
       body = (
         <div className={styles.pad}>
           <div className={`${styles.title} ${styles.titleSm}`}>{title}</div>

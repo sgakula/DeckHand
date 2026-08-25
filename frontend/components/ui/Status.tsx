@@ -26,15 +26,17 @@ export function Skeleton({
   height = 14,
   radius,
   style,
+  className,
 }: {
   width?: number | string;
   height?: number | string;
   radius?: number | string;
   style?: CSSProperties;
+  className?: string;
 }) {
   return (
     <span
-      className={styles.skeleton}
+      className={[styles.skeleton, className].filter(Boolean).join(" ")}
       style={{ display: "block", width: width ?? "100%", height, borderRadius: radius, ...style }}
       aria-hidden
     />

@@ -123,9 +123,36 @@ finish the OAuth flow — the notes and the locked deck are unaffected.
 
 ### Frontend
 
-Next.js App Router + TypeScript, plain CSS Modules over a token layer in
-`app/globals.css` (light and dark, following the OS unless toggled). No UI or
-icon dependencies.
+Next.js App Router + TypeScript, CSS Modules over a token layer in
+`app/globals.css`. Runtime dependencies are `next`, `react`, `react-dom` and
+nothing else — no UI kit, no icon package, no animation library.
+
+**Design system, and why it is the way it is**
+
+- **Dark by default.** A deck is a white document; dark chrome makes it the
+  brightest thing on screen. `SlideCanvas` deliberately keeps its own light
+  palette in both themes, because that is how the deck will actually look on a
+  projector. Light theme is a full peer — toggle in the header.
+- **Type is Google Sans** (`next/font/google`), which became SIL OFL in
+  December 2025, plus Google Sans Code for mono. Dark mode applies `GRAD -25`
+  so light-on-dark text is optically corrected without any metric change.
+- **Motion uses Material 3 Expressive's published spring physics** — damping
+  ratio and stiffness solved and sampled into CSS `linear()`, because a
+  `cubic-bezier` cannot overshoot and settle the way a spring does. The rule
+  the system enforces: *spatial* springs (position, size) may overshoot;
+  *effects* springs (colour, opacity) are critically damped and never bounce.
+  Buttons morph from pill to rounded-rect while pressed.
+- **View transitions** are on via React's `ViewTransition` (bundled React
+  canary in the App Router). Phase navigation slides directionally; a deck
+  cover morphs from the dashboard card into the workspace. `ViewTransition.tsx`
+  wraps it so the app still renders if the export is absent.
+- **Agent presence** is a deliberate vocabulary, in `ui/Generating.tsx`: a
+  shimmer label while the agent thinks, a conic gradient frame around whatever
+  it is currently rewriting, and a step trace for multi-stage work.
+- Everything honours `prefers-reduced-motion`.
+
+`/styleguide` renders every primitive and all nine slide templates on one page.
+It is the fastest way to check a change did not break something elsewhere.
 
 ```
 app/p/[pid]/{brief,sources,outline,deck,rehearse,present,debrief,versions}

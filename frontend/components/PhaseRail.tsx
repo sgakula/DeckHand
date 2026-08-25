@@ -33,6 +33,10 @@ export function PhaseRail({ pid, phases }: { pid: string; phases: Phase[] }) {
   const done = steps.filter((p) => p.complete).length;
   const pct = Math.round((done / steps.length) * 100);
 
+  // Direction encodes movement through the flow, so the page slide matches the
+  // rail: later phase slides in from the right, earlier from the left.
+  const activeIndex = phases.findIndex((p) => p.status === "active");
+
   return (
     <nav className={styles.rail} aria-label="Presentation phases">
       <div className={styles.progress}>
@@ -47,7 +51,8 @@ export function PhaseRail({ pid, phases }: { pid: string; phases: Phase[] }) {
         </div>
       </div>
 
-      {phases.map((phase) => {
+      {phases.map((phase, i) => {
+        const direction = i > activeIndex ? "nav-forward" : "nav-back";
         const classes = [
           styles.item,
           phase.status === "active" && styles.active,
@@ -76,6 +81,7 @@ export function PhaseRail({ pid, phases }: { pid: string; phases: Phase[] }) {
           <Link
             key={phase.id}
             href={phaseHref(pid, phase.id)}
+            transitionTypes={[direction]}
             className={classes}
             // The label is hidden in the collapsed rail, so name the link here too.
             title={phase.label}

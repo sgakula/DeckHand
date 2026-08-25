@@ -171,7 +171,6 @@ export default function OutlinePage() {
                 variant="primary"
                 onClick={runPropose}
                 pending={propose.pending}
-                leading={<Icon name="sparkle" size={17} />}
               >
                 Propose outline
               </Button>

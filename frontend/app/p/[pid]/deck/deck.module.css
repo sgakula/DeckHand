@@ -20,8 +20,8 @@
 }
 
 .sectionChipBuilt {
-  border-color: transparent;
-  background: var(--success-subtle);
+  border-color: var(--border-subtle);
+  background: var(--surface-inset);
 }
 
 .sectionName {
@@ -35,7 +35,7 @@
 }
 
 .sectionChipBuilt .sectionName {
-  color: var(--success-text);
+  color: var(--text-tertiary);
 }
 
 .sectionCount {

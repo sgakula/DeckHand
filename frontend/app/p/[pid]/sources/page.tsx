@@ -86,7 +86,6 @@ export default function SourcesPage() {
               variant="primary"
               onClick={connect}
               pending={action.pending}
-              leading={<Icon name="sparkle" size={16} />}
             >
               Extract facts
             </Button>

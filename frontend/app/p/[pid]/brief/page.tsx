@@ -7,6 +7,7 @@ import { useWorkspace } from "@/components/WorkspaceProvider";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { ShimmerLabel } from "@/components/ui/Generating";
 import { Icon } from "@/components/ui/Icon";
 import { Alert, LoadingBlock } from "@/components/ui/Status";
 import { useToast } from "@/components/ui/Toast";
@@ -229,12 +230,7 @@ export default function BriefPage() {
                     <Icon name="sparkle" size={15} />
                   </span>
                   <div className={styles.thinking}>
-                    Thinking
-                    <span className={styles.dots}>
-                      <span />
-                      <span />
-                      <span />
-                    </span>
+                    <ShimmerLabel icon={false}>Thinking through your answer</ShimmerLabel>
                   </div>
                 </div>
               )}

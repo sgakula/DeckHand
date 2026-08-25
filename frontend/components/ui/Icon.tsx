@@ -273,11 +273,13 @@ const paths: Record<IconName, React.ReactNode> = {
       <path d="M13.5 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.54 3.54 0 0 0 5 5l1.6-1.6" />
     </>
   ),
+  // Two stacked slides: reads as "deck" at 16px, where a monitor glyph reads as
+  // a generic screen.
   logo: (
     <>
-      <path d="M4 7.2A2.2 2.2 0 0 1 6.2 5h11.6A2.2 2.2 0 0 1 20 7.2v6.1a2.2 2.2 0 0 1-2.2 2.2H6.2A2.2 2.2 0 0 1 4 13.3V7.2Z" />
-      <path d="M8.6 19.4h6.8" />
-      <path d="M9.4 9.1h5.2M9.4 11.8h3.2" />
+      <path d="M3.6 6.4A1.9 1.9 0 0 1 5.5 4.5h9.2a1.9 1.9 0 0 1 1.9 1.9v6.4" opacity="0.55" />
+      <rect x="7.3" y="8.4" width="13.1" height="9.6" rx="2.1" />
+      <path d="M10.6 12.2h6.5M10.6 14.8h3.9" />
     </>
   ),
 };

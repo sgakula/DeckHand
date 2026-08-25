@@ -18,17 +18,16 @@ function subscribe(onChange: () => void) {
   };
 }
 
-/** An explicit choice on <html> wins; otherwise follow the OS. */
+/** The bootstrap script always stamps an explicit theme; dark is the default. */
 function getTheme(): Theme {
   const attr = document.documentElement.dataset.theme;
-  if (attr === "light" || attr === "dark") return attr;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return attr === "light" ? "light" : "dark";
 }
 
 export function ThemeToggle() {
   // The theme is browser state, not React state, so read it from the DOM rather
   // than mirroring it — that also avoids a hydration mismatch on the icon.
-  const theme = useSyncExternalStore(subscribe, getTheme, () => "light" as Theme);
+  const theme = useSyncExternalStore(subscribe, getTheme, () => "dark" as Theme);
 
   const toggle = () => {
     const next: Theme = theme === "dark" ? "light" : "dark";

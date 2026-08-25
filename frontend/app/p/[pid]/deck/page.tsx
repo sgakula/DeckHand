@@ -137,6 +137,11 @@ export default function DeckPage() {
   const unbuilt = sections.filter((s) => !slidesBySection.has(s.id));
   const approvedCount = slides.filter((s) => s.approved).length;
 
+  // Sourcing is the product's actual promise, so it belongs next to the approval
+  // count rather than only inside the pre-flight check.
+  const metrics = slides.flatMap((s) => s.blocks.filter((b) => b.kind === "metric"));
+  const unsourced = metrics.filter((b) => !b.source_ref).length;
+
   return (
     <>
       <PageHeader
@@ -148,6 +153,13 @@ export default function DeckPage() {
             {locked && (
               <Badge tone="neutral" pill>
                 <Icon name="lock" size={12} /> Locked v{deck?.version}
+              </Badge>
+            )}
+            {metrics.length > 0 && (
+              <Badge tone={unsourced === 0 ? "success" : "warning"} pill>
+                {unsourced === 0
+                  ? `all ${metrics.length} figures sourced`
+                  : `${unsourced} of ${metrics.length} figures unsourced`}
               </Badge>
             )}
             {slides.length > 0 && (
@@ -185,7 +197,7 @@ export default function DeckPage() {
                 size="sm"
                 pending={build.isPending(section.id)}
                 onClick={() => buildSection(section.id)}
-                leading={<Icon name={built ? "refresh" : "sparkle"} size={14} />}
+                leading={<Icon name={built ? "refresh" : "plus"} size={14} />}
               >
                 {built ? "Rebuild" : "Build"}
               </Button>
@@ -213,7 +225,6 @@ export default function DeckPage() {
               variant="primary"
               onClick={buildAll}
               pending={build.isPending("all")}
-              leading={<Icon name="sparkle" size={17} />}
             >
               Build all sections
             </Button>
@@ -304,7 +315,6 @@ export default function DeckPage() {
                     onClick={() => submitEdit(editText)}
                     pending={edit.pending && !edit.isPending("approve")}
                     disabled={!editText.trim()}
-                    leading={<Icon name="sparkle" size={16} />}
                   >
                     Apply
                   </Button>

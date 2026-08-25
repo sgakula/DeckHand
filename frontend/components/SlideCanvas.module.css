@@ -19,11 +19,13 @@
   /* Slides keep their own light palette in both app themes: a deck is a document,
      not chrome, and it must look the same as it will on the projector. */
   --slide-bg: #ffffff;
-  --slide-fg: #1f2328;
-  --slide-muted: #5f6368;
-  --slide-accent: #1a73e8;
-  --slide-rule: #e3e6ea;
-  --slide-tint: #f5f7fa;
+  --slide-fg: #14161c;
+  --slide-muted: #5a6273;
+  /* Matches the product accent so the deck reads as part of Deckhand, not as a
+     generic Office template. */
+  --slide-accent: #5f66f0;
+  --slide-rule: #e4e7ed;
+  --slide-tint: #f5f6fb;
 }
 
 .bordered {
@@ -161,9 +163,9 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 1cqw;
-  padding: 3cqw;
+  justify-content: flex-end;
+  gap: 0.8cqw;
+  padding: 3cqw 2.4cqw 2.4cqw;
   border-radius: 1.6cqw;
   background: var(--slide-tint);
   min-width: 0;
@@ -187,13 +189,17 @@
 }
 
 .metricSource {
-  font-size: 1.9cqw;
+  font-size: 1.8cqw;
+  line-height: 1.3;
   color: var(--slide-muted);
   opacity: 0.75;
   margin-top: 0.4cqw;
-  display: flex;
-  align-items: center;
-  gap: 0.8cqw;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 /* ---- quote ---- */
@@ -231,17 +237,19 @@
 
 /* ---- diagram ---- */
 
+/* No wrapping: a wrapped row leaves an arrow pointing at empty space, and the
+   nodes read as a broken sequence rather than one flow. */
 .diagram {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 1.6cqw;
-  flex-wrap: wrap;
+  gap: 1.2cqw;
+  flex-wrap: nowrap;
 }
 
 .node {
   flex: 1 1 0;
-  min-width: 18cqw;
+  min-width: 0;
   padding: 2.4cqw 2cqw;
   border-radius: 1.4cqw;
   background: var(--slide-tint);
@@ -264,16 +272,17 @@
 .timeline {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   position: relative;
-  padding-top: 3cqw;
+  padding-top: 4cqw;
 }
 
+/* Inset by half a column so the rule starts and ends at the outer dots. */
 .timelineLine {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 4.6cqw;
+  left: 8%;
+  right: 8%;
+  top: 5.1cqw;
   height: 0.35cqw;
   background: var(--slide-rule);
   border-radius: 1cqw;
@@ -284,7 +293,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.6cqw;
+  gap: 1.8cqw;
   text-align: center;
   position: relative;
   padding: 0 1cqw;
@@ -332,7 +341,7 @@
 .onImage {
   --slide-fg: #ffffff;
   --slide-muted: rgb(255 255 255 / 0.82);
-  --slide-accent: #8ab4f8;
+  --slide-accent: #a9b3ff;
 }
 
 .imagePending {
@@ -345,8 +354,10 @@
       var(--slide-tint) 0 2cqw,
       #eef1f5 2cqw 4cqw
     );
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 2.4cqw;
   color: #9aa0a6;
 }
 
@@ -392,7 +403,9 @@
 .metric .unsourced {
   position: absolute;
   top: 1.4cqw;
+  left: 1.4cqw;
   right: 1.4cqw;
+  justify-content: center;
 }
 
 /* ---- empty ---- */

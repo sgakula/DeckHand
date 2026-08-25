@@ -1,0 +1,101 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--s8) var(--s6) var(--s12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s9);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  align-items: center;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--s4);
+}
+
+/* ---- swatches ---- */
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: var(--s3);
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.chip {
+  height: 56px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+}
+
+.swatchName {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* ---- type ---- */
+
+.typeRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s4);
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.typeLabel {
+  flex: none;
+  width: 96px;
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+}
+
+/* ---- slide gallery ---- */
+
+.slides {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--s5);
+}
+
+.slideCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.slideName {
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+}
+
+.genDemo {
+  border-radius: var(--radius-md);
+  max-width: 520px;
+}
