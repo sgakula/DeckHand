@@ -704,3 +704,35 @@ hr {
     animation: none !important;
   }
 }
+
+/* ==========================================================================
+   View Transitions — the canvas → focus morph.
+   The artifact keeps one transition name across both layouts, so the browser
+   animates the same element growing rather than cross-fading two of them.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(artifact) {
+    animation-duration: var(--spring-spatial-default-dur);
+    animation-timing-function: var(--spring-spatial-default);
+  }
+
+  /* Cross-fade the contents quickly while the box springs — a slow fade on a
+     morphing element reads as a ghost. */
+  ::view-transition-old(artifact),
+  ::view-transition-new(artifact) {
+    animation-duration: 180ms;
+    animation-timing-function: var(--ease);
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 220ms;
+  }
+}
+
+/* Pointer events during a transition land on a snapshot, not the live DOM. */
+::view-transition-group(*),
+::view-transition-image-pair(*) {
+  pointer-events: none;
+}

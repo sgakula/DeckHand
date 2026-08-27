@@ -49,7 +49,11 @@ export type IconName =
   | "quote"
   | "image"
   | "link"
-  | "logo";
+  | "logo"
+  | "cursor"
+  | "chart"
+  | "doc"
+  | "upload";
 
 const paths: Record<IconName, React.ReactNode> = {
   brief: (
@@ -273,6 +277,27 @@ const paths: Record<IconName, React.ReactNode> = {
       <path d="M13.5 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.54 3.54 0 0 0 5 5l1.6-1.6" />
     </>
   ),
+  cursor: (
+    <path d="M5.5 3.4 18.9 11a.6.6 0 0 1-.15 1.1l-5.16 1.4a.9.9 0 0 0-.62.6l-1.5 5.1a.6.6 0 0 1-1.12.08L4.6 4.2a.6.6 0 0 1 .9-.8Z" />
+  ),
+  chart: (
+    <>
+      <path d="M4 19.5V4.5M4 19.5h16" />
+      <path d="M8 19.5v-6M12.5 19.5V8M17 19.5v-9" />
+    </>
+  ),
+  doc: (
+    <>
+      <path d="M5.5 4h8L19 9.4V20a.5.5 0 0 1-.5.5h-13A.5.5 0 0 1 5 20V4.5a.5.5 0 0 1 .5-.5Z" />
+      <path d="M13.5 4v5.5H19M8.5 13h7M8.5 16.4h4.5" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M12 15.5v-11m0 0-4 4m4-4 4 4" />
+      <path d="M4.5 16.5v2A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5v-2" />
+    </>
+  ),
   // Two stacked slides: reads as "deck" at 16px, where a monitor glyph reads as
   // a generic screen.
   logo: (
@@ -292,7 +317,8 @@ export interface IconProps extends Omit<SVGProps<SVGSVGElement>, "name"> {
 }
 
 export function Icon({ name, size = 20, filled = false, ...rest }: IconProps) {
-  const isFilledGlyph = filled || name === "google" || name === "play" || name === "send";
+  const isFilledGlyph =
+    filled || name === "google" || name === "play" || name === "send" || name === "cursor";
   return (
     <svg
       width={size}

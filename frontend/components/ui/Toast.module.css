@@ -1,6 +1,6 @@
 .viewport {
   position: fixed;
-  bottom: var(--s6);
+  bottom: var(--toast-offset, var(--s6));
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
