@@ -19,7 +19,16 @@ from ..config import settings
 T = TypeVar("T", bound=BaseModel)
 
 
-def make_agent(name: str, instruction: str, output_schema: Type[BaseModel] | None = None) -> LlmAgent:
+def make_agent(name: str, instruction: str, output_schema: Type[BaseModel] | None = None,
+               thinking: str = "low") -> LlmAgent:
+    """Build a one-shot agent.
+
+    `thinking` is the knob that decides whether a turn feels live. "low" buys
+    judgement — the conductor needs it to weigh a conflict. "off" is for agents
+    that render rather than reason: the composer's job is to write HTML it has
+    already been told the shape of, and letting it deliberate doubled the time a
+    page took to appear for no gain in the page.
+    """
     kwargs: dict = dict(
         name=name,
         model=settings().gemini_model,
@@ -29,7 +38,14 @@ def make_agent(name: str, instruction: str, output_schema: Type[BaseModel] | Non
         kwargs["output_schema"] = output_schema
         kwargs["disallow_transfer_to_parent"] = True
         kwargs["disallow_transfer_to_peers"] = True
-    return LlmAgent(**kwargs)
+    agent = LlmAgent(**kwargs)
+    _THINKING[agent.name] = thinking
+    return agent
+
+
+#: Per-agent thinking preference, keyed by agent name (LlmAgent has no slot for
+#: it and the value has to survive into the per-model retry loop).
+_THINKING: dict[str, str] = {}
 
 
 async def run_agent_text(agent: LlmAgent, uid: str, prompt: str, attempts: int = 3) -> str:
@@ -43,6 +59,9 @@ async def run_agent_text(agent: LlmAgent, uid: str, prompt: str, attempts: int =
 
     for index, model in enumerate(models):
         agent.model = model
+        agent.generate_content_config = _gen_config_for(
+            model, _THINKING.get(agent.name, settings().gemini_thinking_level)
+        )
         has_fallback = index < len(models) - 1
 
         for attempt in range(attempts):
@@ -64,6 +83,24 @@ async def run_agent_text(agent: LlmAgent, uid: str, prompt: str, attempts: int =
 
     assert last is not None
     raise last
+
+
+def _gen_config_for(model: str, mode: str) -> gt.GenerateContentConfig | None:
+    """Turn a thinking preference into a config this model will accept.
+
+    Measured on the composer's real prompt: unbounded thinking 23s, "low" 14s,
+    off 7.4s — for output that was, if anything, better. Reasoning is worth
+    paying for in the conductor and worth nothing in the renderer.
+    """
+    if mode == "off":
+        return gt.GenerateContentConfig(
+            thinking_config=gt.ThinkingConfig(thinking_budget=0)
+        )
+    if mode and model.startswith("gemini-3"):
+        return gt.GenerateContentConfig(
+            thinking_config=gt.ThinkingConfig(thinking_level=mode)
+        )
+    return None
 
 
 def _model_chain() -> list[str]:

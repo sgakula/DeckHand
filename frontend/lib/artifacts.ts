@@ -91,6 +91,33 @@ export function renderArtifactDocument(body: string): string {
   .pad{flex:1;display:flex;flex-direction:column;padding:64px 72px;gap:28px}
   .eyebrow{font-size:15px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--brand)}
   .rule{width:84px;height:5px;border-radius:99px;background:var(--brand)}
+  /* The composition vocabulary. The composer writes class names, not walls of
+     inline CSS: less to generate (so pages land faster) and every page in a
+     workspace inherits the same proportions. */
+  .h1{font-size:62px;line-height:1.06;letter-spacing:-.03em;font-weight:700;max-width:17ch}
+  .h2{font-size:40px;line-height:1.12;letter-spacing:-.02em;font-weight:700}
+  .support{font-size:25px;line-height:1.45;color:var(--muted);max-width:36ch}
+  .spacer{flex:1}
+  .cards{display:flex;gap:22px;align-items:stretch}
+  .card{flex:1;background:var(--tint);border:1px solid var(--line);border-radius:18px;
+        padding:26px 28px;display:flex;flex-direction:column;gap:7px}
+  .card.dark{background:#12151c;border-color:#252a35}
+  .card.dark .label,.card.dark .cite{color:#98a0b4}
+  .card.dark .stat{color:#fff}
+  .label{font-size:14px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .stat{font-size:52px;line-height:1;letter-spacing:-.03em;font-weight:700;color:var(--brand)}
+  .stat.ink{color:var(--ink)}
+  .note{font-size:17px;line-height:1.4;color:var(--muted)}
+  .cite{font-size:12.5px;color:var(--muted);opacity:.85;margin-top:auto;padding-top:10px}
+  .row{display:flex;gap:22px}
+  .owner{font-size:16px;font-weight:500}
+  .owner b{color:var(--brand);font-weight:700}
+  /* Full-bleed art with a readable scrim; put copy in .over. */
+  .hero{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .scrim{position:absolute;inset:0;background:linear-gradient(90deg,rgba(9,10,15,.94) 34%,rgba(9,10,15,.42))}
+  .over{position:relative;z-index:1}
+  .onart{color:#fff}
+  .onart .support{color:#d9dce8}
 </style></head><body>${body}</body></html>`;
 }
 

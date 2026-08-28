@@ -44,6 +44,7 @@ export type IconName =
   | "download"
   | "search"
   | "close"
+  | "hand"
   | "thumbUp"
   | "thumbDown"
   | "quote"
@@ -246,6 +247,13 @@ const paths: Record<IconName, React.ReactNode> = {
     </>
   ),
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  hand: (
+    <>
+      <path d="M10.2 10.3V4.6a1.3 1.3 0 0 1 2.6 0v5.2" />
+      <path d="M12.8 9.8V5.3a1.3 1.3 0 0 1 2.6 0v6.2" />
+      <path d="M15.4 11.5V7.6a1.3 1.3 0 0 1 2.6 0v6.8c0 4-2.7 6.6-6.5 6.6-3 0-4.7-1.5-6.2-4l-2-3.4a1.35 1.35 0 0 1 2.32-1.38l1.78 2.58V6.6a1.3 1.3 0 0 1 2.6 0v3.7" />
+    </>
+  ),
   thumbUp: (
     <>
       <path d="M7 10.5v9H4.5a.5.5 0 0 1-.5-.5v-8a.5.5 0 0 1 .5-.5H7Z" />

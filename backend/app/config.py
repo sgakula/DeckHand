@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     gemini_fallback_models: str = "gemini-3.6-flash,gemini-2.5-flash,gemini-3.1-flash-lite"
     gemini_live_model: str = "gemini-3.5-flash-live"
     image_model: str = "gemini-3.1-flash-image"
+    #: "low" keeps live-session turns snappy; "" lets the model think freely.
+    gemini_thinking_level: str = "low"
     transcribe_model: str = "gemini-3.5-transcribe"
 
     google_search_api_key: str = ""
@@ -29,6 +31,8 @@ class Settings(BaseSettings):
     oauth_redirect_uri: str = "http://localhost:8080/auth/google/callback"
 
     frontend_origin: str = "http://localhost:3000"
+    #: Where this API is reachable from the browser (media URLs are absolute).
+    public_base_url: str = "http://localhost:8090"
     dev_fake_uid: str = ""
     enable_tracing: bool = False
 

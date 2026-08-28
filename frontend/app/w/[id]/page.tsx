@@ -13,7 +13,7 @@ import { api } from "@/lib/api";
 import { clockTime, errorMessage } from "@/lib/format";
 import { withViewTransition } from "@/lib/viewTransition";
 import { useSpeech } from "@/lib/useSpeech";
-import { SCRIPT, SPEAKERS, speakerColor } from "@/lib/script";
+import { SCRIPT, SESSION_TITLE, SPEAKERS, scriptProgress, speakerColor } from "@/lib/script";
 import type { Artifact } from "@/lib/artifacts";
 import type { Workspace, WorkspacePage } from "@/lib/types";
 import styles from "./workspace.module.css";
@@ -39,6 +39,8 @@ function asArtifact(page: WorkspacePage): Artifact {
   };
 }
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 const initials = (name: string) =>
   name
     .split(/\s+/)
@@ -62,6 +64,16 @@ export default function WorkspacePage() {
   const [queued, setQueued] = useState(0);
   const wsRef = useRef<Workspace | null>(null);
 
+  // ---- scripted playback: one click runs the whole meeting ----------------
+  const playing = useRef(false);
+  const [playUi, setPlayUi] = useState<"idle" | "running" | "awaiting">("idle");
+  const playUiRef = useRef(playUi);
+  const [speakingN, setSpeakingN] = useState<number | null>(null);
+  const [showNotes, setShowNotes] = useState(false);
+  // Which suggestion was allowed to speak. A new suggestion is a new raised
+  // hand, so this compares against the current next_step instead of a boolean.
+  const [openedStep, setOpenedStep] = useState("");
+
   // ---- load or create ----------------------------------------------------
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +81,7 @@ export default function WorkspacePage() {
       try {
         const w =
           id === "new"
-            ? await api.createWorkspace("Untitled session", "presentation")
+            ? await api.createWorkspace(SESSION_TITLE, "presentation")
             : await api.getWorkspace(id);
         if (cancelled) return;
         setWorkspace(w);
@@ -86,6 +98,7 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     wsRef.current = workspace;
+    playUiRef.current = playUi;
   });
 
   useEffect(() => {
@@ -150,6 +163,57 @@ export default function WorkspacePage() {
     [drain],
   );
 
+  // Runs the script like a meeting actually unfolds: a beat while the person
+  // "speaks", the agent decides live, then a pause so the eye lands on what
+  // changed. When the agent asks the group a question, playback stops and waits
+  // for a human to answer — the whole point — then resumes on its own.
+  const runScript = useCallback(async () => {
+    if (playing.current) return;
+    playing.current = true;
+    setPlayUi("running");
+    try {
+      // Let the last state flush before reading it (resume after an answer).
+      await sleep(150);
+      while (playing.current) {
+        const current = wsRef.current;
+        if (!current) break;
+        if (current.pending_question) {
+          setPlayUi("awaiting");
+          return;
+        }
+        const idx = scriptProgress(current.transcript);
+        if (idx >= SCRIPT.length) break;
+        const line = SCRIPT[idx];
+        setSpeakingN(line.n);
+        await sleep(450);
+        setThinking(true);
+        let acted = false;
+        try {
+          const result = await api.sendUtterance(current.id, line.speaker, line.text);
+          acted = result.decision === "act";
+          applyResult(result.workspace, acted ? result.page_id : undefined);
+          if (acted && result.unsourced?.length) {
+            toast.show(`${result.unsourced.length} claim needs a source`, { tone: "error" });
+          }
+        } catch (err) {
+          toast.error(errorMessage(err));
+          break; // Play again resumes exactly here — progress lives on the server.
+        } finally {
+          setThinking(false);
+          setSpeakingN(null);
+        }
+        await sleep(acted ? 1300 : 700);
+      }
+    } finally {
+      playing.current = false;
+      setPlayUi((state) => (state === "awaiting" ? state : "idle"));
+    }
+  }, [applyResult, toast]);
+
+  const stopScript = useCallback(() => {
+    playing.current = false;
+  }, []);
+
   const answer = useCallback(
     async (choice: string) => {
       if (!workspace) return;
@@ -157,13 +221,17 @@ export default function WorkspacePage() {
       try {
         const result = await api.answerQuestion(workspace.id, choice);
         applyResult(result.workspace, result.page_id);
+        if (playUiRef.current === "awaiting") {
+          setPlayUi("idle");
+          void runScript();
+        }
       } catch (err) {
         toast.error(errorMessage(err));
       } finally {
         setThinking(false);
       }
     },
-    [workspace, applyResult, toast],
+    [workspace, applyResult, toast, runScript],
   );
 
   const rate = useCallback(
@@ -225,7 +293,7 @@ export default function WorkspacePage() {
   }, [workspace]);
 
   /** How far through the script we are, derived from the server transcript. */
-  const sent = workspace?.transcript.length ?? 0;
+  const sent = scriptProgress(workspace?.transcript ?? []);
 
   const utteranceById = useMemo(() => {
     const map = new Map<string, string>();
@@ -295,6 +363,16 @@ export default function WorkspacePage() {
                 <ShimmerLabel>Following the conversation…</ShimmerLabel>
               </span>
             )}
+            {sent === 0 && playUi === "idle" && !thinking && (
+              <button
+                type="button"
+                className={styles.stagePlay}
+                onClick={() => void runScript()}
+              >
+                <Icon name="play" size={17} />
+                Run the meeting
+              </button>
+            )}
             <div
               className={[styles.renderer, thinking && styles.rendererLive]
                 .filter(Boolean)
@@ -337,8 +415,18 @@ export default function WorkspacePage() {
 
         <aside className={styles.rail}>
           <div className={styles.railHead}>
-            <span className={styles.railTitle}>Session</span>
-            {active.caused_by.length > 0 && (
+            <span className={styles.railTitle}>{showNotes ? "Notes" : "Session"}</span>
+            <button
+              type="button"
+              className={[styles.whyBtn, showNotes && styles.notesOn].filter(Boolean).join(" ")}
+              onClick={() => setShowNotes((v) => !v)}
+            >
+              {showNotes ? "Back to session" : "Notes"}
+              {!showNotes && workspace.notes.length > 0 && (
+                <span className={styles.notesCount}>{workspace.notes.length}</span>
+              )}
+            </button>
+            {!showNotes && active.caused_by.length > 0 && (
               <button
                 type="button"
                 className={styles.whyBtn}
@@ -361,8 +449,23 @@ export default function WorkspacePage() {
             </div>
           )}
 
-          {/* The agent leading rather than waiting. Declining is remembered. */}
-          {workspace.next_step && (
+          {/* The agent leading without interrupting: it raises a hand, and the
+              suggestion is only spoken once a person allows it. Declining is
+              remembered. */}
+          {!showNotes && workspace.next_step && openedStep !== workspace.next_step && (
+            <button
+              type="button"
+              className={styles.handRaise}
+              onClick={() => setOpenedStep(workspace.next_step)}
+            >
+              <span className={styles.handBadge}>
+                <Icon name="hand" size={13} />
+              </span>
+              Deckhand raised a hand
+              <span className={styles.handHint}>let it speak</span>
+            </button>
+          )}
+          {!showNotes && workspace.next_step && openedStep === workspace.next_step && (
             <div className={styles.nudge}>
               <span className={styles.nudgeIcon}>
                 <Icon name="sparkle" size={14} />
@@ -389,6 +492,7 @@ export default function WorkspacePage() {
             </div>
           )}
 
+          {!showNotes && (
           <div className={styles.feed}>
             {workspace.events.length === 0 && (
               <span className={styles.listening}>
@@ -472,13 +576,21 @@ export default function WorkspacePage() {
                   <span className={styles.actionBody}>
                     <span className={styles.actionText}>{event.text}</span>
                     <span className={styles.actionMeta}>
-                      <button
-                        type="button"
-                        className={styles.jump}
-                        onClick={() => setActiveId(event.page_id)}
-                      >
-                        {pages.find((p) => p.id === event.page_id)?.label ?? "page"}
-                      </button>
+                      {event.page_id && (
+                        <button
+                          type="button"
+                          className={styles.jump}
+                          onClick={() => setActiveId(event.page_id)}
+                        >
+                          {pages.find((p) => p.id === event.page_id)?.label ?? "page"}
+                        </button>
+                      )}
+                      {event.link && (
+                        <a className={styles.linkChip} href={event.link} download>
+                          <Icon name="download" size={11} />
+                          {event.link_label || "open file"}
+                        </a>
+                      )}
                       <span className={styles.rate}>
                         <button
                           type="button"
@@ -514,77 +626,28 @@ export default function WorkspacePage() {
             )}
             <div ref={feedEnd} />
           </div>
+          )}
 
-          {/* What a good facilitator would have written down. */}
-          {workspace.notes.length > 0 && (
-            <div className={styles.notes}>
-              <span className={styles.notesLabel}>
-                Notes
-                <span className={styles.notesCount}>{workspace.notes.length}</span>
-              </span>
-              <div className={styles.notesList}>
-                {workspace.notes.slice(-5).map((note) => (
-                  <span key={note.id} className={styles.note}>
-                    <span className={`${styles.noteKind} ${styles[note.kind] ?? ""}`}>
-                      {note.kind.replace("_", " ")}
-                    </span>
-                    <span className={styles.noteText}>
-                      {note.text}
-                      {note.owner && <strong> · {note.owner}</strong>}
-                    </span>
+          {/* Everything a good facilitator would have written down. */}
+          {showNotes && (
+            <div className={styles.notesFull}>
+              {workspace.notes.length === 0 && (
+                <span className={styles.listening}>Nothing worth writing down yet.</span>
+              )}
+              {workspace.notes.map((note) => (
+                <span key={note.id} className={styles.note}>
+                  <span className={`${styles.noteKind} ${styles[note.kind] ?? ""}`}>
+                    {note.kind.replace("_", " ")}
                   </span>
-                ))}
-              </div>
+                  <span className={styles.noteText}>
+                    {note.text}
+                    {note.owner && <strong> · {note.owner}</strong>}
+                  </span>
+                </span>
+              ))}
             </div>
           )}
 
-          {/* The scripted conversation. Click a line and that person says it into
-              the real agent loop — only the voices are staged. */}
-          <div className={styles.script}>
-            <span className={styles.scriptLabel}>
-              Script
-              <span className={styles.scriptProgress}>
-                {Math.min(sent, SCRIPT.length)}/{SCRIPT.length}
-              </span>
-            </span>
-            <div className={styles.scriptList}>
-              {SCRIPT.map((line, i) => {
-                const done = i < sent;
-                const isNext = i === sent;
-                return (
-                  <button
-                    key={line.n}
-                    type="button"
-                    className={[
-                      styles.line,
-                      done && styles.lineDone,
-                      isNext && styles.lineNext,
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    disabled={thinking}
-                    onClick={() => say(line.speaker, line.text)}
-                  >
-                    <span
-                      className={styles.lineWho}
-                      style={{ background: SPEAKERS[line.speaker] ?? "#888" }}
-                    >
-                      {line.speaker[0]}
-                    </span>
-                    <span className={styles.lineBody}>
-                      <span className={styles.lineText}>{line.text}</span>
-                      <span className={styles.lineBeat}>
-                        <span className={styles.lineExpect} data-expect={line.expect}>
-                          {line.expect}
-                        </span>
-                        {line.beat}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </aside>
       </div>
 
@@ -598,23 +661,40 @@ export default function WorkspacePage() {
           onClick={() => (speech.listening ? speech.stop() : speech.start())}
           leading={<Icon name={speech.listening ? "mic" : "micOff"} size={16} />}
         />
+        {sent < SCRIPT.length && playUi !== "awaiting" && (
+          <Button
+            variant="secondary"
+            size="sm"
+            iconOnly
+            aria-label={playUi === "running" ? "Pause the meeting" : "Play the meeting"}
+            onClick={() => (playUi === "running" ? stopScript() : void runScript())}
+            leading={<Icon name={playUi === "running" ? "stop" : "play"} size={16} />}
+          />
+        )}
 
         <div className={styles.callPeople}>
-          {speakers.map((person) => (
-            <span
-              key={person}
-              className={styles.person}
-              style={{ ["--speaker-color" as string]: speakerColor(person) }}
-            >
+          {speakers.map((person) => {
+            const talking =
+              speakingN !== null &&
+              SCRIPT.find((l) => l.n === speakingN)?.speaker === person;
+            return (
               <span
-                className={styles.personAvatar}
-                style={{ background: speakerColor(person) }}
+                key={person}
+                className={[styles.person, talking && styles.personSpeaking]
+                  .filter(Boolean)
+                  .join(" ")}
+                style={{ ["--speaker-color" as string]: speakerColor(person) }}
               >
-                {initials(person)}
+                <span
+                  className={styles.personAvatar}
+                  style={{ background: speakerColor(person) }}
+                >
+                  {initials(person)}
+                </span>
+                <span className={styles.personName}>{person}</span>
               </span>
-              <span className={styles.personName}>{person}</span>
-            </span>
-          ))}
+            );
+          })}
 
           <span className={styles.agentChip}>
             <span className={styles.agentWave} aria-hidden>

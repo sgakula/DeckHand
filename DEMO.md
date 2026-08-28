@@ -1,225 +1,99 @@
-# Deckhand — live demo script
+# Deckhand — the demo runbook
 
 **Track:** The Collaborative Partner
-**Runtime:** 3:00 · **Cast:** 3 (Karthik, Member 2, Member 3)
+**Scenario:** a go/no-go launch review · **Runtime:** ~1:55 · **Cast:** you + Amara (eng), Tomás (sales), Jules (marketing)
 
 ---
 
 ## The one sentence
 
-> Three people get on a call and talk. Nobody types. The deck builds itself on the
-> shared screen — and the agent knows when *not* to touch it.
+> Four people with four kinds of expertise talk through a launch decision.
+> Nobody types. The launch brief builds itself on the shared screen — pages
+> included: the workspace starts as ONE empty page, and every page that exists
+> at the end was created by the agent because the conversation opened that
+> topic.
 
----
+That last clause is the anti-template proof. Say it out loud in the video.
 
-## Why this wins the track, line by line
-
-| The track asks for | What the judge sees |
-|---|---|
-| "leads the way" | Agent offers the next move unprompted; declining is remembered |
-| "takes notes" | Decisions, commitments and open questions captured live |
-| "ask clarifying questions" | Real disagreement → agent stops and asks, edits blocked until answered |
-| "guide step-by-step" | It walks an empty deck to a finished one without being told the order |
-| "capture feedback" | Thumbs on any action; a thumbs-down changes behaviour |
-| "adapts to your way of thinking" | "cite every one" becomes a permanent preference across sessions |
-
-**The differentiator to say out loud:** *most speech is not an instruction.* An
-agent that edits on every sentence is unusable. Deckhand decides **act / hold /
-ask** on every turn and shows its reasoning.
-
----
-
-## Setup (before you record)
+## How to run it
 
 ```bash
-# 1. API + worker
-cd backend && source .venv/bin/activate && uvicorn app.main:app --port 8090
-cd worker  && source .venv/bin/activate && uvicorn app.main:app --port 8081
-
-# 2. Frontend
-cd frontend && npm run dev        # http://localhost:3000
-
-# 3. Fresh session
-open http://localhost:3000/w/new
+cd backend  && .venv/bin/python -m uvicorn app.main:app --port 8090
+cd frontend && npm run dev
+open http://localhost:3000/w/new     # press ▶ Run the meeting
 ```
 
-- Browser at **1560×900**, dark theme, session rail visible.
-- **Quota check first.** Free tier is ~20 requests/day/model. This script is
-  ~11 turns. Rehearse on a different Google project than the one you record on,
-  or enable billing. If the rail says *"lost the thread for a second"*, you are
-  out of quota — that is not a bug in the product.
+You participate three times: let it speak when it **raises its hand**, answer
+the **pricing question** when the room deadlocks, and open **Notes** at the end.
 
----
+## The scenario, beat by beat
 
-## THE SCRIPT
-
-Timings are speech only. Leave the agent's pauses in — the thinking is the point.
-
----
-
-### 0:00 — Cold open (Karthik, to camera)
-
-> **KARTHIK:** "This is a Series B deck. It's empty. We're not going to type
-> anything — we're just going to have the meeting."
-
-*Click into the workspace. Four blank slides: Hook, Problem, Traction, The ask.*
-
----
-
-### 0:12 — It ignores you (the credibility beat)
-
-> **MEMBER 2 (Amara):** "Can everyone hear me okay?"
-> **MEMBER 3 (Tomás):** "Yeah, you're coming through."
-
-*Rail: two grey lines — `audio check in progress`.*
-
-> **KARTHIK:** "It heard that and did nothing. That's deliberate — it's deciding
-> whether we actually asked for something."
-
-**Judge takeaway:** this is not a transcription toy.
-
----
-
-### 0:30 — Critique alone is not an instruction
-
-> **AMARA:** "The opening is too soft. It reads like every other infra deck."
-
-*Rail: `critique noted, waiting for a direction`. Slide unchanged.*
-
-> **KARTHIK:** "Still nothing. Someone complained, but nobody said what to do."
-
----
-
-### 0:45 — Convergence → it acts
-
-> **TOMÁS:** "Lead with the four-times-slower stat. Make that the headline."
-> **AMARA:** "Agreed, do that."
-
-*Stage glows. Hook rewrites to **"Every team ships four times slower than they
-think."** An amber **unsourced** banner appears under the slide.*
-
-> **KARTHIK:** "Proposal plus agreement — now it moves. And look: it flagged its
-> own number. We never connected the data, so it won't pretend that's sourced."
-
-**Judge takeaway:** the guardrail is deterministic, not vibes.
-
----
-
-### 1:15 — It reaches for a tool
-
-> **TOMÁS:** "Priya will ask about gross margin. Pull it from the revenue sheet
-> and put it on traction."
-
-*Drive chip lights in the header. Rail: `Read revenue.xlsx — pulled 3 figures`.*
-
-> **AMARA:** "Yes — retention, margin and logos. And cite every one."
-
-*Traction fills with three figures, each with its cell reference. **No amber
-banner** this time.*
-
-> **KARTHIK:** "Same agent, same slide type — sourced this time, because it went
-> and got the numbers."
-
----
-
-### 1:45 — ★ It refuses to guess (the money shot)
-
-> **TOMÁS:** "On the ask, I want the full use of funds broken out."
-> **AMARA:** "No — keep the ask to one line. Breakdowns kill the close."
-
-*Amber card in the rail: **Needs a decision** — "How should the ask slide read?"
-with buttons: `One line` · `Full breakdown` · `One line + appendix`.
-Everything is frozen.*
-
-> **KARTHIK:** "Two people want opposite things. It won't pick a side and it
-> won't average them — it stops and asks. Nothing gets edited until we answer."
-
-*Click **One line + appendix**. The ask slide composes.*
-
-**Judge takeaway:** this is the track's thesis in five seconds.
-
----
-
-### 2:15 — It leads
-
-*Blue nudge card appears on its own: "Problem is still empty — want me to draft
-it from the churn analysis?" with `Do it` · `Not now`.*
-
-> **KARTHIK:** "Nobody asked for that. It noticed the gap."
-
-*Click **Do it**. Problem slide fills.*
-
-> **KARTHIK:** "And if I'd said 'not now', it won't offer it again. Guide, not nag."
-
----
-
-### 2:35 — Feedback that sticks
-
-*Scroll the Notes panel: **decision** "lead with the 4× stat" · **commitment**
-"Karthik — send Priya the cohort breakdown" · **preference** "Always cite figures".*
-
-> **KARTHIK:** "It took the minutes. And that last one — nobody set a setting.
-> Amara said 'cite every one' once, and it turned that into a standing rule."
-
-*Thumbs-down one action. Toast: "Noted — I'll adjust."*
-
-> **KARTHIK:** "That's stored against me, not this deck. Next session it already
-> knows."
-
----
-
-### 2:50 — Close
-
-> **KARTHIK:** "Eleven sentences. Nobody opened a slide editor. Every number
-> traces to a cell, every decision is written down, and it learned how we work."
-
-*Header: Drive · Sheets · Gmail · Slides.*
-
-> "Gemini 3.5 for the reasoning, 3.5-transcribe for the room, Google Workspace
-> for everything after."
-
----
-
-## Exact lines (copy-paste for the demo voices)
-
-| # | Speaker | Line | Expected |
+| # | Who (expertise) | Line (abridged) | The agent — all live |
 |---|---|---|---|
-| 1 | Amara | Can everyone hear me okay? | HOLD |
-| 2 | Tomás | Yeah, you're coming through. | HOLD |
-| 3 | Amara | The opening is too soft. It reads like every other infra deck. | HOLD |
-| 4 | Tomás | Lead with the four-times-slower stat. Make that the headline. | HOLD |
-| 5 | Amara | Agreed, do that. | **ACT** + unsourced |
-| 6 | Tomás | Priya will ask about gross margin. Pull it from the revenue sheet and put it on traction. | TOOL |
-| 7 | Amara | Yes — retention, margin and logos. And cite every one. | **ACT** sourced + preference |
-| 8 | Tomás | On the ask, I want the full use of funds broken out. | HOLD |
-| 9 | Amara | No — keep the ask to one line. Breakdowns kill the close. | **ASK** |
-| 10 | *(click)* | One line + appendix | **ACT** |
-| 11 | Karthik | I'll send Priya the cohort breakdown by Friday. | commitment note |
+| 1 | You (product) | "Go or no-go on Autopilot. Start a positioning page…" | **CREATES the Positioning page**, composes it |
+| 2 | Amara (eng) | "Ground it in the beta. Pull the beta metrics sheet, cite cells." | **DRIVE** — parses beta.xlsx (10 real figures) → **creates Evidence page** |
+| 3 | Tomás (sales) | "Search what Datadog and PagerDuty charge for automation add-ons." | **LIVE GOOGLE SEARCH** — real competitor pricing, cited `web · pagerduty.com` → **creates Pricing page** |
+| 4 | Jules (mktg) | "Hero visual — calm ops floor at night, premium." | **IMAGE** — real generation onto Positioning. (It may also raise its hand about the empty Cover — let it speak, click Do it) |
+| 5 | You | "The evidence page still feels thin." | **HOLD** — critique with no direction |
+| 6 | Amara | "The story is durability — add the cohort curve, cite it." | **DRIVE** — second real file (cohorts.csv) |
+| 7 | Tomás | "Forty-nine per host. Lands under Datadog." | **ACT** — $49 on the pricing page, amber-flagged (nobody sourced it) |
+| 8 | Jules | "Absolutely not — premium dies at forty-nine." | **ASK** ★ — sales vs marketing; freezes; three options; you decide |
+| 9 | You | "Amara, what keeps you up at night?" | **HOLD** — "waiting for Amara's response" (a question to a person is not a command) |
+| 10 | Amara | "Approval mode — mine. Rollback load-test — Tomás's. Risks page, with owners." | **CREATES Risks page**; commitments extracted with owners |
+| 11 | Jules | "Draft the beta announcement — lead with the number. Rule: the number is the headline, never an adjective." | **GMAIL** — real .eml whose subject leads with 41% · preference stored for every future session |
+| 12 | Tomás | "Hold Thursday two p.m. with finance." | **CALENDAR** — real .ics |
+| 13 | You | "Export the brief." | **SLIDES** — real .pptx of all 5 pages, image included |
 
-> Lines 1–9 and 11 are in `frontend/lib/voices.ts`. Click the speaker's chip in
-> the rail to fire their next line, or say them into the mic yourself.
+## What to say over it (the sell)
 
----
+- After 1–3: *"Three sentences, three experts, three pages — none of which
+  existed a minute ago. There is no template here; the agenda becomes the
+  artifact."*
+- After 3: *"Those competitor prices came from a live Google search during the
+  meeting — look at the citations: the web source and our spreadsheet cells,
+  side by side."*
+- After 7–8: *"Sales and marketing want different prices. It will not pick a
+  side, and it will not average them. The room decides; then it moves."*
+- After 9: *"I asked Amara a question — it knew that wasn't for it."*
+- At the end: *"Thirteen sentences. A five-page brief with every number
+  sourced or flagged, two risks with owners, a decision log, an email draft,
+  a calendar hold, and a PowerPoint file. And it learned one rule about how
+  this team works — permanently."*
 
-## If it goes wrong on camera
+## Video shot list (4:00 max — submission requirements)
 
-| Symptom | Say this | Then |
-|---|---|---|
-| `lost the thread for a second` | "That's the free-tier quota, not the agent." | Keep going; next turn retries on a fallback model |
-| Agent holds when you wanted an act | **Don't fight it** — "It's not convinced yet." Add the agreement line. | Genuinely better than it guessing |
-| Agent acts early | "It got there faster than the script." | Move on |
-| Compose is slow | Let the shimmer run. It reads as thinking. | — |
-
-**Never** re-record because it held. A hold is the feature.
-
----
+1. 0:00 — Cloud Run console + the `.run.app` URL on screen ("backend live on
+   Google Cloud"), then open the app at that URL. **Required by the rules.**
+2. 0:20 — press ▶ Run the meeting; let it play (~1:55), narrate the beats above.
+   Unedited — the rules require live execution.
+3. ~3:20 — the off-script proof: type or say your own sentence (e.g. "add a
+   competition page comparing us to PagerDuty") and watch a page appear that is
+   in no script. Optionally: open `backend/demo_drive/beta.xlsx`, change a
+   number, ask again — the slide cites the new value.
+4. 3:45 — Notes panel + downloaded .pptx open in PowerPoint.
 
 ## What is real vs. staged
 
-Say this in the submission — judges reward the honesty and it costs nothing:
+**Real, every run:** all act/hold/ask decisions (Gemini 3.5 Flash via Google
+ADK; the conductor reasons at `thinking_level: low`, the composer renders with
+thinking off — measured 2x faster with no loss) · page creation · conflict detection
+(schema-first `conflict_with`) · workbook parsing with true cell coordinates ·
+live Google Search grounding · image generation · the .pptx/.ics/.eml files ·
+unsourced flagging · notes, owners, cross-session preferences · fallback chain.
 
-- **Real:** every act/hold/ask decision, the composed HTML, source tracking,
-  notes extraction, preference learning, model fallback. Live Gemini calls.
-- **Staged:** teammate voices are injected text rather than three live mics
-  (`gemini-3.5-transcribe` is wired for your own mic). Google tools return
-  fixtures — the call signatures and OAuth path are real, the credentials are not.
+**Staged:** the four voices are scripted text (mic works live;
+`gemini-3.5-transcribe` wired for the audio path). The drive folder is local —
+real parser, simulated transport; Gmail/Calendar/Slides write real local files;
+pushing them into Google accounts is the OAuth consent step (`app/oauth.py`).
+
+## If it goes wrong on camera
+
+| Symptom | Say | Then |
+|---|---|---|
+| "lost the thread for a second" | "Model hiccup, not the agent." | Next turn retries on a fallback |
+| A hold you didn't expect | "It's not convinced — that's the feature." | Give it a direction |
+| It creates a page you didn't predict | "It structures the artifact itself." | That IS the demo |
+| Different wording than rehearsal | "Nothing is canned." | Keep narrating the beats |
+
+Every run composes fresh wording — rehearse once before recording so you know
+that day's phrasing. **Never** re-record because it held.

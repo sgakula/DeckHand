@@ -64,6 +64,9 @@ class FeedEvent(BaseModel):
     from_utterances: list[str] = Field(default_factory=list)
     #: Thumbs on an agent action. None = not rated yet.
     rating: Optional[Literal["up", "down"]] = None
+    #: A file this action produced (.pptx export, .ics hold, .eml draft).
+    link: str = ""
+    link_label: str = ""
 
 
 class Workspace(BaseModel):
@@ -118,11 +121,10 @@ def require_member(wid: str, uid: str) -> Workspace:
 # ---------- starter content ----------
 
 STARTERS: dict[str, list[tuple[str, str]]] = {
+    # One page only: the artifact's structure is not a template, it grows out
+    # of the conversation — the conductor creates pages as topics emerge.
     "presentation": [
-        ("Hook", "The one line that makes them lean in"),
-        ("Problem", "Why this keeps happening"),
-        ("Traction", "Where we are"),
-        ("The ask", "What we want from this room"),
+        ("Cover", "The room shapes this from the first sentence"),
     ],
     "page": [("Page", "The whole page")],
     "report": [("Summary", "What happened"), ("Detail", "The numbers behind it")],
@@ -151,6 +153,16 @@ def _placeholder(label: str, hint: str) -> str:
     )
 
 
+def make_page(label: str, position: int) -> Page:
+    """A page the conductor decided the artifact needs. Born a placeholder so
+    the composer knows to replace it wholesale."""
+    return Page(
+        id=f"p{position + 1}",
+        label=label,
+        body=_placeholder(label, "Taking shape from the discussion"),
+    )
+
+
 def new_workspace(uid: str, title: str, kind: WorkspaceKind = "presentation") -> Workspace:
     return Workspace(
         id=new_id(),
@@ -170,10 +182,21 @@ def get_preferences(uid: str) -> list[str]:
 
 
 def add_preference(uid: str, text: str) -> list[str]:
-    """Append a durable working preference, de-duplicated, newest last."""
+    """Append a durable working preference, newest last.
+
+    De-duplication is by containment, not equality: "Always cite figures" and
+    "Always cite figures in the deck." are the same habit, and re-learning it
+    every session would silently crowd out the other preferences.
+    """
     prefs = get_preferences(uid)
-    if text and text not in prefs:
-        prefs.append(text)
-        prefs = prefs[-40:]
-        db().document(f"users/{uid}/meta/workspacePrefs").set({"preferences": prefs})
+    norm = text.lower().strip(" .")
+    if not norm:
+        return prefs
+    for existing in prefs:
+        e = existing.lower().strip(" .")
+        if norm in e or e in norm:
+            return prefs
+    prefs.append(text)
+    prefs = prefs[-40:]
+    db().document(f"users/{uid}/meta/workspacePrefs").set({"preferences": prefs})
     return prefs

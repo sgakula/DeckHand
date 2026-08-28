@@ -5,8 +5,10 @@ via Pub/Sub. See PROJECT_FLOW.txt at the repo root for the product flow.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from . import oauth
+from .images import MEDIA_DIR
 from .config import settings
 from .routers import (
     feedback, interview, jobs, live, outline, presentations, session, slides, talks,
@@ -36,6 +38,9 @@ app.include_router(feedback.router)
 app.include_router(versions.router)
 app.include_router(jobs.router)
 app.include_router(session.router)
+
+# Generated visuals the composer embeds by URL.
+app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
 
 @app.get("/healthz")

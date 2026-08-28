@@ -3,7 +3,9 @@ composer acts only if the group actually converged.
 
 The whole product is this endpoint. Everything else is presentation.
 """
+import asyncio
 import logging
+from collections import defaultdict
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -16,12 +18,16 @@ from ..schemas import now
 from .. import tools
 from ..workspaces import (
     FeedEvent, Note, Utterance, Workspace, WorkspaceKind, add_preference,
-    create_workspace, get_preferences, list_workspaces, new_workspace,
+    create_workspace, get_preferences, list_workspaces, make_page, new_workspace,
     require_member, save_workspace,
 )
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 log = logging.getLogger(__name__)
+
+# One writer per workspace at a time. A nudge click landing while a scripted
+# utterance is mid-flight must queue, not clobber the read-modify-write.
+_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
 class CreateReq(BaseModel):
@@ -79,6 +85,11 @@ async def get(wid: str, uid: str = Uid):
 @router.post("/{wid}/utterance")
 async def utterance(wid: str, req: UtteranceReq, uid: str = Uid):
     """One turn of the conversation. Returns what the agent decided and why."""
+    async with _locks[wid]:
+        return await _utterance(wid, req, uid)
+
+
+async def _utterance(wid: str, req: UtteranceReq, uid: str):
     w = _member(wid, uid)
 
     turn = Utterance(id=new_id(), speaker=req.speaker, text=req.text)
@@ -104,6 +115,8 @@ async def utterance(wid: str, req: UtteranceReq, uid: str = Uid):
             [e.text for e in w.events if e.kind == "asked"],
             get_preferences(w.owner_uid),
             w.declined_steps,
+            recent_actions=[e.text for e in reversed(w.events)
+                            if e.kind == "acted" and e.text][:6],
         )
     except Exception:  # noqa: BLE001
         # Degrading is fine; degrading silently is not — this has to be diagnosable.
@@ -118,17 +131,28 @@ async def utterance(wid: str, req: UtteranceReq, uid: str = Uid):
     _record_notes(w, decision)
     w.next_step = decision.next_step or ""
 
-    tool_facts: list = []
+    instruction = decision.instruction
+    image_url = ""
     if decision.tool.name:
-        result = tools.execute(decision.tool.name, tools.args_for(decision.tool), uid)
+        # Off the event loop: a real tool (or image generation) can take long
+        # enough that keeping the API responsive matters mid-session.
+        result = await asyncio.to_thread(
+            tools.execute, decision.tool.name, tools.args_for(decision.tool), uid,
+            {"pages": [p.model_dump() for p in w.pages], "title": w.title},
+        )
         if result is not None:
-            tool_facts = result.facts
             # Tool output becomes citable, so the composer can source from it.
-            w.facts.extend(result.facts)
+            known = {(f.fact, f.source_ref) for f in w.facts}
+            w.facts.extend(
+                f for f in result.facts if (f.fact, f.source_ref) not in known
+            )
             w.events.append(
                 FeedEvent(id=new_id(), kind="acted", reason="used a tool",
-                          text=result.summary, tool=decision.tool.name)
+                          text=result.summary, tool=decision.tool.name,
+                          link=(result.data or {}).get("url", ""),
+                          link_label=(result.data or {}).get("link_label", ""))
             )
+            image_url = (result.data or {}).get("image_url", "")
 
     if decision.action == "hold":
         w.events.append(
@@ -144,6 +168,7 @@ async def utterance(wid: str, req: UtteranceReq, uid: str = Uid):
             text=decision.question,
             reason=decision.reason,
             options=decision.options,
+            page_id=decision.target_page_id,
         )
         w.events.append(ask)
         w.pending_question = ask
@@ -151,8 +176,36 @@ async def utterance(wid: str, req: UtteranceReq, uid: str = Uid):
         return {"decision": "ask", "question": decision.question,
                 "options": decision.options, "workspace": w}
 
-    return await _apply(w, uid, decision.target_page_id, decision.instruction,
-                        decision.reason, [turn.id])
+    target_page = decision.target_page_id
+    if decision.new_page_label and not any(
+        p.label.lower() == decision.new_page_label.lower() for p in w.pages
+    ):
+        page = make_page(decision.new_page_label, len(w.pages))
+        w.pages.append(page)
+        target_page = page.id
+
+    # The composer needs the image URL; the humans in the feed do not.
+    composed = instruction
+    if image_url and decision.action == "act":
+        composed += (
+            f"\n\nA generated image for this page is available at: {image_url}"
+            "\nEmbed it with an <img> tag where it strengthens the page."
+        )
+    return await _apply(w, uid, target_page, composed,
+                        decision.reason, [turn.id], shown=instruction)
+
+
+def _pick_page(w: Workspace, text: str) -> str:
+    """Best page for an instruction with no explicit target: a label mentioned in
+    the text, else the first still-empty page, else the first page."""
+    lowered = text.lower()
+    for p in w.pages:
+        if p.label.lower() in lowered:
+            return p.id
+    for p in w.pages:
+        if p.is_placeholder:
+            return p.id
+    return w.pages[0].id if w.pages else ""
 
 
 def _record_notes(w: Workspace, decision) -> None:
@@ -170,6 +223,11 @@ def _record_notes(w: Workspace, decision) -> None:
 @router.post("/{wid}/answer")
 async def answer(wid: str, req: AnswerReq, uid: str = Uid):
     """Resolve the blocking question and immediately act on the answer."""
+    async with _locks[wid]:
+        return await _answer(wid, req, uid)
+
+
+async def _answer(wid: str, req: AnswerReq, uid: str):
     w = _member(wid, uid)
     if w.pending_question is None:
         raise HTTPException(409, "nothing to answer")
@@ -181,18 +239,18 @@ async def answer(wid: str, req: AnswerReq, uid: str = Uid):
                   reason=question.text)
     )
     w.transcript.append(
-        Utterance(id=new_id(), speaker=uid, text=f"{question.text} — {req.choice}")
+        Utterance(id=new_id(), speaker="You", text=f"{question.text} — {req.choice}")
     )
 
     # The answer is itself the instruction; no need to re-run the conductor.
-    target = question.page_id or (w.pages[0].id if w.pages else "")
+    target = question.page_id or _pick_page(w, f"{question.text} {req.choice}")
     return await _apply(w, uid, target, f"{question.text} The group chose: {req.choice}",
                         "you answered", [w.transcript[-1].id])
 
 
 async def _apply(
     w: Workspace, uid: str, page_id: str, instruction: str, reason: str,
-    from_utterances: list[str],
+    from_utterances: list[str], shown: str | None = None,
 ):
     """Run the composer against one page and record what changed and why."""
     page = next((p for p in w.pages if p.id == page_id), None) or (w.pages[0] if w.pages else None)
@@ -221,7 +279,8 @@ async def _apply(
     page.unsourced = [
         f"{c.text}{f': {c.value}' if c.value else ''}" for c in result.claims if not c.source_ref
     ]
-    if result.label:
+    # Labels are filmstrip captions: short or not at all.
+    if result.label and len(result.label) <= 24:
         page.label = result.label
 
     w.events.append(
@@ -229,7 +288,7 @@ async def _apply(
             id=new_id(),
             kind="acted",
             reason=reason,
-            text=instruction,
+            text=shown or instruction,
             page_id=page.id,
             from_utterances=from_utterances,
         )
@@ -271,6 +330,11 @@ async def next_step(wid: str, req: StepReq, uid: str = Uid):
     Declining is remembered so it stops re-offering the same thing — the
     difference between a guide and a nag.
     """
+    async with _locks[wid]:
+        return await _next_step(wid, req, uid)
+
+
+async def _next_step(wid: str, req: StepReq, uid: str):
     w = _member(wid, uid)
     suggestion = w.next_step
     if not suggestion:
@@ -282,9 +346,9 @@ async def next_step(wid: str, req: StepReq, uid: str = Uid):
         save_workspace(w)
         return {"decision": "hold", "reason": "noted", "workspace": w}
 
-    w.transcript.append(Utterance(id=new_id(), speaker=uid, text=f"Yes — {suggestion}"))
-    return await _apply(w, uid, w.pages[0].id, suggestion, "you accepted the suggestion",
-                        [w.transcript[-1].id])
+    w.transcript.append(Utterance(id=new_id(), speaker="You", text=f"Yes — {suggestion}"))
+    return await _apply(w, uid, _pick_page(w, suggestion), suggestion,
+                        "you accepted the suggestion", [w.transcript[-1].id])
 
 
 @router.get("/{wid}/notes")

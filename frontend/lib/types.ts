@@ -245,6 +245,9 @@ export interface WorkspaceFeedEvent {
   options: string[];
   from_utterances: string[];
   rating: "up" | "down" | null;
+  /** A file this action produced (.pptx export, .ics hold, .eml draft). */
+  link: string;
+  link_label: string;
 }
 
 export type WorkspaceNoteKind =
