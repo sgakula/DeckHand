@@ -4,7 +4,9 @@ We keep conversation history in Firestore (build session events), not in ADK's
 session service, so every call reconstructs the context it needs. That keeps the
 Cloud Run services stateless and horizontally scalable.
 """
+import asyncio
 import json
+import re
 from typing import Type, TypeVar
 
 from google.adk.agents import LlmAgent
@@ -30,8 +32,77 @@ def make_agent(name: str, instruction: str, output_schema: Type[BaseModel] | Non
     return LlmAgent(**kwargs)
 
 
-async def run_agent_text(agent: LlmAgent, uid: str, prompt: str) -> str:
-    """One-shot run; returns the final text response."""
+async def run_agent_text(agent: LlmAgent, uid: str, prompt: str, attempts: int = 3) -> str:
+    """One-shot run; returns the final text response.
+
+    Retries transient upstream failures. Gemini returns 503 under load often
+    enough that a live session would visibly break without this.
+    """
+    models = _model_chain()
+    last: Exception | None = None
+
+    for index, model in enumerate(models):
+        agent.model = model
+        has_fallback = index < len(models) - 1
+
+        for attempt in range(attempts):
+            try:
+                return await _run_once(agent, uid, prompt)
+            except Exception as exc:  # noqa: BLE001 - retry policy is by status
+                last = exc
+                # A per-day quota does not recover by waiting, so move to the next
+                # model immediately rather than burning the retry budget.
+                if _is_quota(exc) and has_fallback:
+                    break
+                if not _is_transient(exc):
+                    raise
+                if attempt == attempts - 1:
+                    if has_fallback:
+                        break
+                    raise
+                await asyncio.sleep(_retry_after(exc, attempt))
+
+    assert last is not None
+    raise last
+
+
+def _model_chain() -> list[str]:
+    """Primary model first, then any configured fallbacks, de-duplicated."""
+    s = settings()
+    chain = [s.gemini_model, *[m.strip() for m in s.gemini_fallback_models.split(",")]]
+    seen: set[str] = set()
+    return [m for m in chain if m and not (m in seen or seen.add(m))]
+
+
+def _is_quota(exc: Exception) -> bool:
+    text = str(exc)
+    return "RESOURCE_EXHAUSTED" in text or "429" in text
+
+
+def _is_transient(exc: Exception) -> bool:
+    code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+    if code in (429, 500, 502, 503, 504):
+        return True
+    text = str(exc)
+    return "503" in text or "UNAVAILABLE" in text or "RESOURCE_EXHAUSTED" in text
+
+
+def _retry_after(exc: Exception, attempt: int) -> float:
+    """Honour the server's own backoff hint when it gives one.
+
+    A 429 from the free tier says "Please retry in 8.6s"; exponential backoff
+    from a sub-second base just burns the remaining quota. Capped so a wedged
+    request cannot stall a live session indefinitely.
+    """
+    match = re.search(r"retry in ([\d.]+)s", str(exc)) or re.search(
+        r"'retryDelay':\s*'(\d+)s'", str(exc)
+    )
+    if match:
+        return min(float(match.group(1)) + 0.5, 30.0)
+    return min(1.5 * (2**attempt), 30.0)
+
+
+async def _run_once(agent: LlmAgent, uid: str, prompt: str) -> str:
     runner = InMemoryRunner(agent=agent)
     session = await runner.session_service.create_session(
         app_name=runner.app_name, user_id=uid

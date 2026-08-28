@@ -1,38 +1,31 @@
 "use client";
 
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArtifactFrame } from "@/components/workspace/ArtifactFrame";
 import { Button } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { ShimmerLabel } from "@/components/ui/Generating";
-import { clockTime } from "@/lib/format";
+import { LoadingBlock, Alert } from "@/components/ui/Status";
+import { useToast } from "@/components/ui/Toast";
+import { api } from "@/lib/api";
+import { clockTime, errorMessage } from "@/lib/format";
 import { withViewTransition } from "@/lib/viewTransition";
-import {
-  INITIAL_PAGES,
-  PARTICIPANTS,
-  SESSION_SCRIPT,
-  TOOLS,
-  WORKSPACE_KIND_LABEL,
-  type FeedItem,
-  type Page,
-  type ToolId,
-} from "@/lib/session";
+import { useSpeech } from "@/lib/useSpeech";
+import { SCRIPT, SPEAKERS, speakerColor } from "@/lib/script";
 import type { Artifact } from "@/lib/artifacts";
+import type { Workspace, WorkspacePage } from "@/lib/types";
 import styles from "./workspace.module.css";
 
-const TOOL_ICON: Record<ToolId, IconName> = {
-  gmail: "brief",
-  drive: "sources",
-  calendar: "clock",
-  sheets: "chart",
-  slides: "deck",
-};
+const TOOLS: { id: string; label: string; icon: IconName; connected: boolean }[] = [
+  { id: "drive", label: "Drive", icon: "sources", connected: true },
+  { id: "sheets", label: "Sheets", icon: "chart", connected: true },
+  { id: "gmail", label: "Gmail", icon: "brief", connected: true },
+  { id: "calendar", label: "Calendar", icon: "clock", connected: false },
+];
 
-const personById = (id: string) => PARTICIPANTS.find((p) => p.id === id) ?? PARTICIPANTS[0];
-
-/** Wraps a page's markup in the shape ArtifactFrame renders. */
-function asArtifact(page: Page): Artifact {
+function asArtifact(page: WorkspacePage): Artifact {
   return {
     id: page.id,
     title: page.label,
@@ -41,109 +34,224 @@ function asArtifact(page: Page): Artifact {
     body: page.body,
     state: "ready",
     version: 1,
-    updatedAt: "",
+    updatedAt: page.updated_at ?? "",
     updatedBy: "you",
   };
 }
 
-/**
- * Plays the scripted session: speech lands in the feed, and when the agent acts
- * it patches the artifact on the stage. This is where a Gemini Live socket will
- * plug in — the shape of the state it produces is already what the UI consumes.
- */
-function useLiveSession(onPatch: (pageId: string, body: string) => void) {
-  const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [speakerId, setSpeakerId] = useState<string | null>(null);
-  const [busyTool, setBusyTool] = useState<ToolId | null>(null);
-  const [editingPageId, setEditingPageId] = useState<string | null>(null);
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+export default function WorkspacePage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const toast = useToast();
+
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string>("");
+  const [thinking, setThinking] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  // Kept in a ref so the scripted playback below never restarts when the
-  // callback identity changes. Assigned in an effect, not during render.
-  const patchRef = useRef(onPatch);
+  const [showWhy, setShowWhy] = useState(false);
+  const feedEnd = useRef<HTMLDivElement>(null);
+  const [queued, setQueued] = useState(0);
+  const wsRef = useRef<Workspace | null>(null);
+
+  // ---- load or create ----------------------------------------------------
   useEffect(() => {
-    patchRef.current = onPatch;
+    let cancelled = false;
+    (async () => {
+      try {
+        const w =
+          id === "new"
+            ? await api.createWorkspace("Untitled session", "presentation")
+            : await api.getWorkspace(id);
+        if (cancelled) return;
+        setWorkspace(w);
+        setActiveId(w.pages[0]?.id ?? "");
+        if (id === "new") router.replace(`/w/${w.id}`);
+      } catch (err) {
+        if (!cancelled) setLoadError(errorMessage(err));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, router]);
+
+  useEffect(() => {
+    wsRef.current = workspace;
   });
 
   useEffect(() => {
-    const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
-    return () => clearInterval(timer);
+    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-
-    const play = (index: number) => {
-      if (cancelled || index >= SESSION_SCRIPT.length) return;
-      const beat = SESSION_SCRIPT[index];
-
-      timers.push(
-        setTimeout(() => {
-          if (cancelled) return;
-
-          if (beat.item.kind === "speech") {
-            setFeed((f) => [...f, beat.item]);
-            setSpeakerId(beat.item.speakerId);
-            // Stop the meter a beat after the line lands.
-            timers.push(setTimeout(() => !cancelled && setSpeakerId(null), 2200));
-          } else {
-            const action = beat.item;
-            setSpeakerId(null);
-            setBusyTool(action.tool ?? null);
-            setEditingPageId(action.pageId);
-
-            // Let the "rewriting this" state read before the artifact swaps.
-            timers.push(
-              setTimeout(() => {
-                if (cancelled) return;
-                if (beat.patch) {
-                  withViewTransition(() => patchRef.current(beat.patch!.pageId, beat.patch!.body));
-                }
-                setFeed((f) => [...f, action]);
-                setEditingPageId(null);
-                setBusyTool(null);
-              }, 1400),
-            );
-          }
-
-          play(index + 1);
-        }, beat.after),
-      );
-    };
-
-    play(0);
-    return () => {
-      cancelled = true;
-      timers.forEach(clearTimeout);
-    };
-  }, []);
-
-  return { feed, speakerId, busyTool, editingPageId, elapsed };
-}
-
-export default function WorkspacePage() {
-  const [name, setName] = useState("Series B pitch");
-  const [pages, setPages] = useState<Page[]>(INITIAL_PAGES);
-  const [activeId, setActiveId] = useState("p1");
-  const [micOn, setMicOn] = useState(true);
-  const [edited, setEdited] = useState<Set<string>>(new Set());
-  const feedEnd = useRef<HTMLDivElement>(null);
-
-  const patch = useCallback((pageId: string, body: string) => {
-    setPages((cur) => cur.map((p) => (p.id === pageId ? { ...p, body } : p)));
-    setEdited((cur) => new Set(cur).add(pageId));
-    setActiveId(pageId);
-  }, []);
-
-  const { feed, speakerId, busyTool, editingPageId, elapsed } = useLiveSession(patch);
 
   useEffect(() => {
     feedEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [feed]);
+  }, [workspace?.events.length, thinking]);
 
+  // ---- the loop ----------------------------------------------------------
+
+  const applyResult = useCallback(
+    (next: Workspace, changedPage?: string) => {
+      withViewTransition(() => {
+        setWorkspace(next);
+        if (changedPage) setActiveId(changedPage);
+      });
+    },
+    [],
+  );
+
+  // Utterances queue rather than block. A slow turn (model backoff can be 30s on
+  // the free tier) must never stop the room from talking, but the transcript has
+  // to stay ordered, so they drain one at a time.
+  const queue = useRef<{ speaker: string; text: string }[]>([]);
+  const draining = useRef(false);
+
+  const drain = useCallback(async () => {
+    if (draining.current) return;
+    draining.current = true;
+    try {
+      while (queue.current.length) {
+        const turn = queue.current.shift()!;
+        const current = wsRef.current;
+        if (!current) break;
+        setThinking(true);
+        try {
+          const result = await api.sendUtterance(current.id, turn.speaker, turn.text);
+          applyResult(result.workspace, result.decision === "act" ? result.page_id : undefined);
+          if (result.decision === "act" && result.unsourced?.length) {
+            toast.show(`${result.unsourced.length} claim needs a source`, { tone: "error" });
+          }
+        } catch (err) {
+          toast.error(errorMessage(err));
+        }
+      }
+    } finally {
+      draining.current = false;
+      setThinking(false);
+    }
+  }, [applyResult, toast]);
+
+  const say = useCallback(
+    (speaker: string, text: string) => {
+      if (!text.trim()) return;
+      queue.current.push({ speaker, text: text.trim() });
+      setQueued(queue.current.length);
+      void drain().then(() => setQueued(queue.current.length));
+    },
+    [drain],
+  );
+
+  const answer = useCallback(
+    async (choice: string) => {
+      if (!workspace) return;
+      setThinking(true);
+      try {
+        const result = await api.answerQuestion(workspace.id, choice);
+        applyResult(result.workspace, result.page_id);
+      } catch (err) {
+        toast.error(errorMessage(err));
+      } finally {
+        setThinking(false);
+      }
+    },
+    [workspace, applyResult, toast],
+  );
+
+  const rate = useCallback(
+    async (eventId: string, rating: "up" | "down") => {
+      if (!workspace) return;
+      // Optimistic: the thumb should land instantly even though it also
+      // writes a preference that outlives this session.
+      setWorkspace((w) =>
+        w
+          ? {
+              ...w,
+              events: w.events.map((e) => (e.id === eventId ? { ...e, rating } : e)),
+            }
+          : w,
+      );
+      try {
+        await api.rateAction(workspace.id, eventId, rating);
+        if (rating === "down") toast.show("Noted — I'll adjust", { tone: "info" });
+      } catch (err) {
+        toast.error(errorMessage(err));
+      }
+    },
+    [workspace, toast],
+  );
+
+  const resolveStep = useCallback(
+    async (accept: boolean) => {
+      if (!workspace) return;
+      setThinking(true);
+      try {
+        const result = await api.resolveNextStep(workspace.id, accept);
+        applyResult(result.workspace, accept ? result.page_id : undefined);
+      } catch (err) {
+        toast.error(errorMessage(err));
+      } finally {
+        setThinking(false);
+      }
+    },
+    [workspace, applyResult, toast],
+  );
+
+  // Your real voice goes in as "You"; teammates are injected for a solo demo.
+  const speech = useSpeech({
+    onFinalText: (text) => say("You", text),
+    windowSeconds: 6,
+  });
+
+  // ---- derived -----------------------------------------------------------
+
+  const pages = workspace?.pages ?? [];
   const active = pages.find((p) => p.id === activeId) ?? pages[0];
-  const activeArtifact = useMemo(() => asArtifact(active), [active]);
-  const isEditingActive = editingPageId === active.id;
+  const activeArtifact = useMemo(() => (active ? asArtifact(active) : null), [active]);
+  const pending = workspace?.pending_question ?? null;
+
+  const speakers = useMemo(() => {
+    const names = new Set<string>(Object.keys(SPEAKERS));
+    workspace?.transcript.forEach((t) => names.add(t.speaker));
+    return [...names];
+  }, [workspace]);
+
+  /** How far through the script we are, derived from the server transcript. */
+  const sent = workspace?.transcript.length ?? 0;
+
+  const utteranceById = useMemo(() => {
+    const map = new Map<string, string>();
+    workspace?.transcript.forEach((t) => map.set(t.id, `${t.speaker}: ${t.text}`));
+    return map;
+  }, [workspace]);
+
+  if (loadError) {
+    return (
+      <div className={styles.shell}>
+        <div style={{ maxWidth: 520, margin: "18vh auto" }}>
+          <Alert tone="danger" title="Could not open this workspace">
+            {loadError}
+          </Alert>
+        </div>
+      </div>
+    );
+  }
+
+  if (!workspace || !active || !activeArtifact) {
+    return (
+      <div className={styles.shell}>
+        <LoadingBlock label="Opening the session…" />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.shell}>
@@ -151,13 +259,8 @@ export default function WorkspacePage() {
         <Link href="/" className={styles.back} aria-label="All workspaces">
           <Icon name="arrowLeft" size={17} />
         </Link>
-        <input
-          className={styles.name}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          aria-label="Workspace name"
-        />
-        <span className={styles.kindChip}>{WORKSPACE_KIND_LABEL.presentation}</span>
+        <span className={styles.name}>{workspace.title}</span>
+        <span className={styles.kindChip}>{workspace.kind}</span>
         <span className={styles.livePill}>
           <span className={styles.liveDot} />
           LIVE {clockTime(elapsed)}
@@ -165,21 +268,15 @@ export default function WorkspacePage() {
 
         <span className={styles.barSpacer} />
 
-        {/* What the agent can reach. Lights up the moment it uses one. */}
         <div className={styles.tools}>
           {TOOLS.map((tool) => (
             <span
               key={tool.id}
-              className={[
-                styles.tool,
-                !tool.connected && styles.toolOff,
-                busyTool === tool.id && styles.toolActive,
-              ]
+              className={[styles.tool, !tool.connected && styles.toolOff]
                 .filter(Boolean)
                 .join(" ")}
-              title={tool.connected ? tool.detail : `${tool.label} — not connected`}
             >
-              <Icon name={TOOL_ICON[tool.id]} size={13} />
+              <Icon name={tool.icon} size={13} />
               {tool.label}
             </span>
           ))}
@@ -193,19 +290,32 @@ export default function WorkspacePage() {
       <div className={styles.body}>
         <main className={styles.stage}>
           <div className={styles.stageWrap}>
-            {isEditingActive && (
+            {thinking && (
               <span className={styles.updateBadge}>
-                <ShimmerLabel>Rewriting this slide…</ShimmerLabel>
+                <ShimmerLabel>Following the conversation…</ShimmerLabel>
               </span>
             )}
             <div
-              className={[styles.renderer, isEditingActive && styles.rendererLive]
+              className={[styles.renderer, thinking && styles.rendererLive]
                 .filter(Boolean)
                 .join(" ")}
             >
               <ArtifactFrame artifact={activeArtifact} logicalWidth={1400} />
             </div>
           </div>
+
+          {/* A claim the agent could not tie to a connected source. */}
+          {active.unsourced.length > 0 && (
+            <div className={styles.unsourced}>
+              <Icon name="warning" size={15} />
+              <span className={styles.unsourcedText}>
+                {active.unsourced.length === 1
+                  ? active.unsourced[0]
+                  : `${active.unsourced.length} claims on this page have no source`}
+              </span>
+              <span className={styles.unsourcedTag}>unsourced</span>
+            </div>
+          )}
 
           <div className={styles.filmstrip}>
             {pages.map((page) => (
@@ -218,130 +328,293 @@ export default function WorkspacePage() {
                 onClick={() => setActiveId(page.id)}
               >
                 <ArtifactFrame artifact={asArtifact(page)} logicalWidth={700} />
-                {edited.has(page.id) && <span className={styles.frameEdited} />}
+                {page.unsourced.length > 0 && <span className={styles.frameWarn} />}
                 <span className={styles.frameLabel}>{page.label}</span>
               </button>
             ))}
-            <button type="button" className={styles.addFrame} aria-label="Add a slide">
-              <Icon name="plus" size={18} />
-            </button>
           </div>
         </main>
 
         <aside className={styles.rail}>
           <div className={styles.railHead}>
             <span className={styles.railTitle}>Session</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              iconOnly
-              aria-label="Session history"
-              leading={<Icon name="versions" size={16} />}
-            />
+            {active.caused_by.length > 0 && (
+              <button
+                type="button"
+                className={styles.whyBtn}
+                onClick={() => setShowWhy((v) => !v)}
+              >
+                Why this page?
+              </button>
+            )}
           </div>
 
+          {/* Provenance: the sentences that produced what is on screen. */}
+          {showWhy && active.caused_by.length > 0 && (
+            <div className={styles.why}>
+              <span className={styles.whyLabel}>This page came from</span>
+              {active.caused_by.map((uid) => (
+                <span key={uid} className={styles.whyLine}>
+                  “{utteranceById.get(uid) ?? "an earlier turn"}”
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* The agent leading rather than waiting. Declining is remembered. */}
+          {workspace.next_step && (
+            <div className={styles.nudge}>
+              <span className={styles.nudgeIcon}>
+                <Icon name="sparkle" size={14} />
+              </span>
+              <span className={styles.nudgeBody}>
+                <span className={styles.nudgeText}>{workspace.next_step}</span>
+                <span className={styles.nudgeActions}>
+                  <button
+                    type="button"
+                    className={styles.nudgeYes}
+                    onClick={() => void resolveStep(true)}
+                  >
+                    Do it
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.nudgeNo}
+                    onClick={() => void resolveStep(false)}
+                  >
+                    Not now
+                  </button>
+                </span>
+              </span>
+            </div>
+          )}
+
           <div className={styles.feed}>
-            {feed.length === 0 && (
+            {workspace.events.length === 0 && (
               <span className={styles.listening}>
                 <Icon name="mic" size={14} />
                 Listening for the discussion…
               </span>
             )}
 
-            {feed.map((item) =>
-              item.kind === "speech" ? (
-                <div key={item.id} className={styles.speech}>
-                  <span
-                    className={styles.speechAvatar}
-                    style={{ background: personById(item.speakerId).color }}
-                  >
-                    {personById(item.speakerId).initials}
-                  </span>
-                  <span className={styles.speechBody}>
+            {workspace.events.map((event) => {
+              if (event.kind === "speech") {
+                return (
+                  <div key={event.id} className={styles.speech}>
                     <span
-                      className={styles.speechName}
-                      style={{ color: personById(item.speakerId).color }}
+                      className={styles.speechAvatar}
+                      style={{ background: speakerColor(event.speaker) }}
                     >
-                      {personById(item.speakerId).name}
+                      {initials(event.speaker)}
                     </span>
-                    <span className={styles.speechText}>{item.text}</span>
-                  </span>
-                </div>
-              ) : (
-                <div key={item.id} className={styles.action}>
+                    <span className={styles.speechBody}>
+                      <span
+                        className={styles.speechName}
+                        style={{ color: speakerColor(event.speaker) }}
+                      >
+                        {event.speaker}
+                      </span>
+                      <span className={styles.speechText}>{event.text}</span>
+                    </span>
+                  </div>
+                );
+              }
+
+              if (event.kind === "held") {
+                // The agent explaining why it did nothing is the whole point.
+                return (
+                  <div key={event.id} className={styles.held}>
+                    <Icon name="clock" size={13} />
+                    {event.reason}
+                  </div>
+                );
+              }
+
+              if (event.kind === "asked") {
+                const isPending = pending?.id === event.id;
+                return (
+                  <div key={event.id} className={styles.ask}>
+                    <span className={styles.askLabel}>
+                      <Icon name="info" size={13} />
+                      Needs a decision
+                    </span>
+                    <span className={styles.askText}>{event.text}</span>
+                    {isPending && (
+                      <span className={styles.askOptions}>
+                        {event.options.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            className={styles.askOption}
+                            onClick={() => void answer(option)}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </span>
+                    )}
+                  </div>
+                );
+              }
+
+              if (event.kind === "answered") {
+                return (
+                  <div key={event.id} className={styles.answered}>
+                    <Icon name="check" size={13} />
+                    You chose “{event.text}”
+                  </div>
+                );
+              }
+
+              return (
+                <div key={event.id} className={styles.action}>
                   <Icon name="sparkle" size={15} className={styles.actionIcon} />
                   <span className={styles.actionBody}>
-                    <span className={styles.actionText}>{item.summary}</span>
+                    <span className={styles.actionText}>{event.text}</span>
                     <span className={styles.actionMeta}>
-                      {item.tool && (
-                        <>
-                          <Icon name={TOOL_ICON[item.tool]} size={12} />
-                          {TOOLS.find((t) => t.id === item.tool)?.label}
-                          <span>·</span>
-                        </>
-                      )}
                       <button
                         type="button"
                         className={styles.jump}
-                        onClick={() => setActiveId(item.pageId)}
+                        onClick={() => setActiveId(event.page_id)}
                       >
-                        {pages.find((p) => p.id === item.pageId)?.label}
+                        {pages.find((p) => p.id === event.page_id)?.label ?? "page"}
                       </button>
+                      <span className={styles.rate}>
+                        <button
+                          type="button"
+                          className={[styles.rateBtn, event.rating === "up" && styles.rateOn]
+                            .filter(Boolean)
+                            .join(" ")}
+                          aria-label="Good call"
+                          onClick={() => void rate(event.id, "up")}
+                        >
+                          <Icon name="thumbUp" size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className={[styles.rateBtn, event.rating === "down" && styles.rateOff]
+                            .filter(Boolean)
+                            .join(" ")}
+                          aria-label="Not what we wanted"
+                          onClick={() => void rate(event.id, "down")}
+                        >
+                          <Icon name="thumbDown" size={13} />
+                        </button>
+                      </span>
                     </span>
                   </span>
                 </div>
-              ),
-            )}
+              );
+            })}
 
-            {editingPageId && (
+            {thinking && (
               <span className={styles.listening}>
-                <ShimmerLabel>Working on it…</ShimmerLabel>
+                <ShimmerLabel>Thinking…</ShimmerLabel>
               </span>
             )}
-
             <div ref={feedEnd} />
+          </div>
+
+          {/* What a good facilitator would have written down. */}
+          {workspace.notes.length > 0 && (
+            <div className={styles.notes}>
+              <span className={styles.notesLabel}>
+                Notes
+                <span className={styles.notesCount}>{workspace.notes.length}</span>
+              </span>
+              <div className={styles.notesList}>
+                {workspace.notes.slice(-5).map((note) => (
+                  <span key={note.id} className={styles.note}>
+                    <span className={`${styles.noteKind} ${styles[note.kind] ?? ""}`}>
+                      {note.kind.replace("_", " ")}
+                    </span>
+                    <span className={styles.noteText}>
+                      {note.text}
+                      {note.owner && <strong> · {note.owner}</strong>}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* The scripted conversation. Click a line and that person says it into
+              the real agent loop — only the voices are staged. */}
+          <div className={styles.script}>
+            <span className={styles.scriptLabel}>
+              Script
+              <span className={styles.scriptProgress}>
+                {Math.min(sent, SCRIPT.length)}/{SCRIPT.length}
+              </span>
+            </span>
+            <div className={styles.scriptList}>
+              {SCRIPT.map((line, i) => {
+                const done = i < sent;
+                const isNext = i === sent;
+                return (
+                  <button
+                    key={line.n}
+                    type="button"
+                    className={[
+                      styles.line,
+                      done && styles.lineDone,
+                      isNext && styles.lineNext,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    disabled={thinking}
+                    onClick={() => say(line.speaker, line.text)}
+                  >
+                    <span
+                      className={styles.lineWho}
+                      style={{ background: SPEAKERS[line.speaker] ?? "#888" }}
+                    >
+                      {line.speaker[0]}
+                    </span>
+                    <span className={styles.lineBody}>
+                      <span className={styles.lineText}>{line.text}</span>
+                      <span className={styles.lineBeat}>
+                        <span className={styles.lineExpect} data-expect={line.expect}>
+                          {line.expect}
+                        </span>
+                        {line.beat}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </aside>
       </div>
 
       <footer className={styles.callBar}>
         <Button
-          variant={micOn ? "secondary" : "danger"}
+          variant={speech.listening ? "danger" : "secondary"}
           size="sm"
           iconOnly
-          aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
-          onClick={() => setMicOn((m) => !m)}
-          leading={<Icon name={micOn ? "mic" : "micOff"} size={16} />}
+          aria-label={speech.listening ? "Stop listening" : "Start listening"}
+          disabled={!speech.supported}
+          onClick={() => (speech.listening ? speech.stop() : speech.start())}
+          leading={<Icon name={speech.listening ? "mic" : "micOff"} size={16} />}
         />
 
         <div className={styles.callPeople}>
-          {PARTICIPANTS.map((person) => {
-            const speaking = speakerId === person.id;
-            return (
+          {speakers.map((person) => (
+            <span
+              key={person}
+              className={styles.person}
+              style={{ ["--speaker-color" as string]: speakerColor(person) }}
+            >
               <span
-                key={person.id}
-                className={[styles.person, speaking && styles.personSpeaking]
-                  .filter(Boolean)
-                  .join(" ")}
-                style={{ ["--speaker-color" as string]: person.color }}
+                className={styles.personAvatar}
+                style={{ background: speakerColor(person) }}
               >
-                <span className={styles.personAvatar} style={{ background: person.color }}>
-                  {person.initials}
-                </span>
-                <span className={styles.personName}>{person.name}</span>
-                {person.listening ? (
-                  <Icon name="micOff" size={13} className={styles.mutedIcon} />
-                ) : (
-                  <span className={styles.meter} aria-hidden>
-                    <span className={styles.meterBar} />
-                    <span className={styles.meterBar} />
-                    <span className={styles.meterBar} />
-                    <span className={styles.meterBar} />
-                  </span>
-                )}
+                {initials(person)}
               </span>
-            );
-          })}
+              <span className={styles.personName}>{person}</span>
+            </span>
+          ))}
 
           <span className={styles.agentChip}>
             <span className={styles.agentWave} aria-hidden>
@@ -349,15 +622,21 @@ export default function WorkspacePage() {
               <span />
               <span />
             </span>
-            Deckhand is listening
+            {queued > 1
+              ? `Deckhand is thinking · ${queued - 1} queued`
+              : thinking
+                ? "Deckhand is thinking"
+                : "Deckhand is listening"}
           </span>
         </div>
+
+        {speech.interim && <span className={styles.interim}>{speech.interim}</span>}
 
         <div className={styles.callActions}>
           <Button variant="secondary" size="sm" leading={<Icon name="download" size={15} />}>
             Export
           </Button>
-          <Button variant="danger" size="sm">
+          <Button variant="danger" size="sm" onClick={() => router.push("/")}>
             Leave
           </Button>
         </div>
@@ -365,3 +644,4 @@ export default function WorkspacePage() {
     </div>
   );
 }
+

@@ -178,9 +178,13 @@
   justify-content: center;
 }
 
+/* Height-driven so the stage can never push the filmstrip under the call bar.
+   Width derives from the aspect ratio; max-width caps it on wide screens. */
 .renderer {
-  width: 100%;
-  max-width: min(100%, calc((100vh - 268px) * 16 / 9));
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: #fff;
@@ -218,6 +222,7 @@
 
 .filmstrip {
   flex: none;
+  min-height: 0;
   display: flex;
   gap: var(--s3);
   align-items: flex-start;
@@ -582,4 +587,565 @@
   .rail {
     display: none;
   }
+}
+
+/* ---- unsourced claim banner ---- */
+
+.unsourced {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius);
+  background: var(--warning-subtle);
+  border: 1px solid color-mix(in srgb, var(--warning) 34%, transparent);
+  color: var(--warning-text);
+  animation: riseIn var(--dur) var(--ease-out);
+}
+
+.unsourcedText {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-base);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.unsourcedTag {
+  flex: none;
+  padding: 1px var(--s2);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--warning) 22%, transparent);
+}
+
+.frameWarn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warning);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+/* ---- held / ask / answered ---- */
+
+.held {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  padding-left: var(--s1);
+  animation: riseIn var(--dur) var(--ease-out) backwards;
+}
+
+.ask {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s3);
+  border-radius: var(--radius);
+  background: var(--warning-subtle);
+  border: 1px solid color-mix(in srgb, var(--warning) 34%, transparent);
+  animation: riseIn var(--spring-spatial-default-dur) var(--spring-spatial-default) backwards;
+}
+
+.askLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--warning-text);
+}
+
+.askText {
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text);
+  text-wrap: pretty;
+}
+
+.askOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s1);
+}
+
+.askOption {
+  padding: var(--s1) var(--s3);
+  border-radius: var(--radius-full);
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+  background: var(--surface);
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text);
+  transition: background-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.askOption:hover {
+  background: var(--warning-subtle);
+}
+
+.askOption:active {
+  transform: scale(0.97);
+}
+
+.answered {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--text-sm);
+  color: var(--success-text);
+  animation: riseIn var(--dur) var(--ease-out) backwards;
+}
+
+/* ---- provenance ---- */
+
+.whyBtn {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--accent-text);
+  padding: 2px var(--s2);
+  border-radius: var(--radius-full);
+  background: var(--accent-subtle);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.whyBtn:hover {
+  background: var(--accent-subtle-hover);
+}
+
+.why {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  background: var(--surface-inset);
+  border-bottom: 1px solid var(--border-subtle);
+  animation: riseIn var(--dur) var(--ease-out);
+}
+
+.whyLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.whyLine {
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  font-style: italic;
+  text-wrap: pretty;
+}
+
+/* ---- demo voices ---- */
+
+.voices {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-inset);
+}
+
+.voicesLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.voiceRow {
+  display: flex;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+.voice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s1) var(--s3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.voice:hover:not(:disabled) {
+  border-color: var(--voice-color);
+  color: var(--text);
+}
+
+.voice:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.voiceDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.interim {
+  flex: none;
+  max-width: 34ch;
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- proactive suggestion ---- */
+
+.nudge {
+  flex: none;
+  display: flex;
+  gap: var(--s3);
+  margin: var(--s4) var(--s4) 0;
+  padding: var(--s3);
+  border-radius: var(--radius);
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
+  animation: riseIn var(--spring-spatial-default-dur) var(--spring-spatial-default);
+}
+
+.nudgeIcon {
+  flex: none;
+  color: var(--accent);
+  margin-top: 1px;
+}
+
+.nudgeBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.nudgeText {
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text);
+  text-wrap: pretty;
+}
+
+.nudgeActions {
+  display: flex;
+  gap: var(--s2);
+}
+
+.nudgeYes,
+.nudgeNo {
+  padding: var(--s1) var(--s3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-base);
+  font-weight: 500;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.nudgeYes {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.nudgeYes:hover {
+  background: var(--accent-hover);
+}
+
+.nudgeNo {
+  color: var(--text-tertiary);
+}
+
+.nudgeNo:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* ---- thumbs ---- */
+
+.rate {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.rateBtn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  opacity: 0.55;
+  transition:
+    opacity var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.rateBtn:hover {
+  opacity: 1;
+  background: var(--surface-hover);
+}
+
+.rateOn {
+  opacity: 1;
+  color: var(--success-text);
+  background: var(--success-subtle);
+}
+
+.rateOff {
+  opacity: 1;
+  color: var(--danger-text);
+  background: var(--danger-subtle);
+}
+
+/* ---- notes ---- */
+
+.notes {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--border-subtle);
+  max-height: 232px;
+  overflow-y: auto;
+}
+
+.notesLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.notesCount {
+  padding: 0 var(--s2);
+  border-radius: var(--radius-full);
+  background: var(--surface-active);
+  color: var(--text-secondary);
+  letter-spacing: 0;
+}
+
+.notesList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.note {
+  display: flex;
+  gap: var(--s2);
+  align-items: baseline;
+  font-size: var(--text-base);
+  line-height: 1.45;
+}
+
+.noteKind {
+  flex: none;
+  padding: 1px var(--s2);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: capitalize;
+  background: var(--surface-active);
+  color: var(--text-tertiary);
+}
+
+.decision {
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+}
+
+.commitment {
+  background: var(--success-subtle);
+  color: var(--success-text);
+}
+
+.open_question {
+  background: var(--warning-subtle);
+  color: var(--warning-text);
+}
+
+.preference {
+  background: var(--info-subtle);
+  color: var(--info);
+}
+
+.noteText {
+  color: var(--text-secondary);
+  text-wrap: pretty;
+  min-width: 0;
+}
+
+/* ---- scripted conversation panel ---- */
+
+.script {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4) var(--s4);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-inset);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.scriptLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  position: sticky;
+  top: 0;
+  background: var(--surface-inset);
+  padding-bottom: var(--s1);
+}
+
+.scriptProgress {
+  padding: 0 var(--s2);
+  border-radius: var(--radius-full);
+  background: var(--surface-active);
+  color: var(--text-secondary);
+  letter-spacing: 0;
+}
+
+.scriptList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.line {
+  display: flex;
+  gap: var(--s2);
+  align-items: flex-start;
+  padding: var(--s2);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  text-align: left;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    opacity var(--dur-fast) var(--ease);
+}
+
+.line:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.line:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Already said. Dimmed but still replayable. */
+.lineDone {
+  opacity: 0.42;
+}
+
+/* The one to click next — the whole point of the panel. */
+.lineNext {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.lineWho {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 1px;
+}
+
+.lineBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lineText {
+  font-size: var(--text-base);
+  line-height: 1.45;
+  color: var(--text);
+  text-wrap: pretty;
+}
+
+.lineBeat {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  text-wrap: pretty;
+}
+
+.lineExpect {
+  flex: none;
+  padding: 0 5px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lineExpect[data-expect="act"],
+.lineExpect[data-expect="tool"] {
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+}
+
+.lineExpect[data-expect="hold"] {
+  background: var(--surface-active);
+  color: var(--text-tertiary);
+}
+
+.lineExpect[data-expect="ask"] {
+  background: var(--warning-subtle);
+  color: var(--warning-text);
 }

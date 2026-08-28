@@ -13,9 +13,14 @@ class Settings(BaseSettings):
     google_api_key: str = ""
 
     gemini_model: str = "gemini-3.5-flash"
+    # Tried in order when the primary is out of quota. Free-tier per-day limits
+    # are low enough that a single-model demo can die mid-session.
+    gemini_fallback_models: str = "gemini-3.6-flash,gemini-2.5-flash,gemini-3.1-flash-lite"
     gemini_live_model: str = "gemini-3.5-flash-live"
-    image_model: str = "gemini-3.5-flash-image"
+    image_model: str = "gemini-3.1-flash-image"
+    transcribe_model: str = "gemini-3.5-transcribe"
 
+    google_search_api_key: str = ""
     pubsub_topic: str = "deckhand-jobs"
     gcs_bucket: str = ""
 

@@ -6,6 +6,7 @@
  * is optional throughout.
  */
 import type {
+  AnswerResult,
   BuildEvent,
   DeckVersion,
   DryRunResult,
@@ -18,7 +19,10 @@ import type {
   Slide,
   SourceFact,
   Talk,
+  UtteranceResult,
   VersionSummary,
+  Workspace,
+  WorkspaceKind,
 } from "./types";
 
 export const API_BASE =
@@ -195,6 +199,28 @@ export const api = {
     post<DeckVersion>(`/presentations/${pid}/versions/${version}/revert`),
   branchVersion: (pid: string, version: number, instruction: string) =>
     post<{ job_id: string }>(`/presentations/${pid}/versions/${version}/branch`, { instruction }),
+
+  // ---- live workspaces ----
+  listWorkspaces: (init?: { signal?: AbortSignal }) =>
+    get<Workspace[]>("/workspaces", init),
+  createWorkspace: (title: string, kind: WorkspaceKind) =>
+    post<Workspace>("/workspaces", { title, kind }),
+  getWorkspace: (wid: string, init?: { signal?: AbortSignal }) =>
+    get<Workspace>(`/workspaces/${wid}`, init),
+  /** One turn of the conversation. The agent decides act / hold / ask. */
+  sendUtterance: (wid: string, speaker: string, text: string) =>
+    post<UtteranceResult>(`/workspaces/${wid}/utterance`, { speaker, text }),
+  /** Thumbs on an agent action; a note becomes a durable preference. */
+  rateAction: (wid: string, event_id: string, rating: "up" | "down", note = "") =>
+    post<{ ok: boolean; preferences: string[] }>(`/workspaces/${wid}/rate`, {
+      event_id, rating, note,
+    }),
+  /** Accept or decline the agent's suggested next step. */
+  resolveNextStep: (wid: string, accept: boolean) =>
+    post<UtteranceResult>(`/workspaces/${wid}/next-step`, { accept }),
+  /** Resolve the single question the agent is blocked on. */
+  answerQuestion: (wid: string, choice: string) =>
+    post<AnswerResult>(`/workspaces/${wid}/answer`, { choice }),
 
   // ---- jobs & activity ----
   getJob: (jobId: string, init?: { signal?: AbortSignal }) =>

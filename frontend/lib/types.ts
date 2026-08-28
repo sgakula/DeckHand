@@ -207,3 +207,88 @@ export interface EditResult {
   change_summary?: string;
   clarifying_question?: string;
 }
+
+// ---------------------------------------------------------------- workspaces
+
+export type WorkspaceKind = "presentation" | "page" | "report" | "email" | "dashboard";
+
+export interface WorkspacePage {
+  id: string;
+  label: string;
+  body: string;
+  /** Utterance ids that produced the current content. */
+  caused_by: string[];
+  /** Claims the composer could not tie to a connected source. */
+  unsourced: string[];
+  updated_at: string | null;
+}
+
+export interface WorkspaceUtterance {
+  id: string;
+  speaker: string;
+  text: string;
+  at: string;
+}
+
+export type FeedKind = "speech" | "acted" | "held" | "asked" | "answered";
+
+export interface WorkspaceFeedEvent {
+  id: string;
+  kind: FeedKind;
+  at: string;
+  speaker: string;
+  text: string;
+  /** The agent's one-line explanation, shown to the group. */
+  reason: string;
+  page_id: string;
+  tool: string;
+  options: string[];
+  from_utterances: string[];
+  rating: "up" | "down" | null;
+}
+
+export type WorkspaceNoteKind =
+  | "decision"
+  | "commitment"
+  | "open_question"
+  | "preference";
+
+export interface WorkspaceNote {
+  id: string;
+  kind: WorkspaceNoteKind;
+  text: string;
+  owner: string;
+  at: string;
+  resolved: boolean;
+}
+
+export interface Workspace {
+  id: string;
+  owner_uid: string;
+  title: string;
+  kind: WorkspaceKind;
+  member_uids: string[];
+  pages: WorkspacePage[];
+  facts: SourceFact[];
+  transcript: WorkspaceUtterance[];
+  events: WorkspaceFeedEvent[];
+  pending_question: WorkspaceFeedEvent | null;
+  notes: WorkspaceNote[];
+  /** The agent's current suggestion, offered not imposed. */
+  next_step: string;
+  declined_steps: string[];
+  created_at: string;
+}
+
+export interface UtteranceResult {
+  decision: "act" | "hold" | "ask";
+  reason?: string;
+  question?: string;
+  options?: string[];
+  page_id?: string;
+  unsourced?: string[];
+  degraded?: boolean;
+  workspace: Workspace;
+}
+
+export type AnswerResult = UtteranceResult;

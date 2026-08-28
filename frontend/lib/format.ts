@@ -62,3 +62,10 @@ export function humanizeId(id: string): string {
     .trim()
     .replace(/^./, (c) => c.toUpperCase());
 }
+
+/** Human-readable message for anything thrown by the api client. */
+export function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  return "Something went wrong.";
+}
