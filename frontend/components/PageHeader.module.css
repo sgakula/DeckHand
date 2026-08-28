@@ -1,0 +1,80 @@
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s6);
+  margin-bottom: var(--s6);
+  flex-wrap: wrap;
+}
+
+.text {
+  min-width: 0;
+  flex: 1;
+}
+
+.eyebrow {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin-bottom: var(--s2);
+}
+
+.title {
+  font-size: var(--text-2xl);
+  font-weight: 500;
+  letter-spacing: -0.022em;
+  color: var(--text);
+}
+
+.description {
+  margin-top: var(--s2);
+  font-size: var(--text-md);
+  color: var(--text-tertiary);
+  max-width: 68ch;
+  text-wrap: pretty;
+  line-height: 1.55;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: none;
+  padding-top: var(--s1);
+}
+
+/* ---- section divider ---- */
+
+.section {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin: var(--s8) 0 var(--s4);
+}
+
+.sectionFirst {
+  margin-top: 0;
+}
+
+.sectionTitle {
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  flex: none;
+}
+
+.sectionRule {
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.sectionActions {
+  flex: none;
+  display: flex;
+  gap: var(--s2);
+}

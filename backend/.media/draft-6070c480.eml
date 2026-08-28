@@ -1,0 +1,17 @@
+From: you@deckhand.demo
+To: beta-customers@autopilot.internal
+Subject: 41% faster incident resolution: Autopilot is ready for your team
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+Hi team,
+
+Across 62 beta teams, Autopilot cut median time-to-resolution by 41%=E2=80=94=
+bringing resolution down from 41 minutes to 24 minutes with zero Sev-1 regres=
+sions. We built this to close the loop from alert to fix automatically, and t=
+he results from your beta environments have proven it works.
+
+We are rolling out general access alongside our new approval-mode controls fo=
+r regulated environments. Thank you for partnering with us during the beta=E2=
+=80=94we can't wait to see how much more time your on-call engineers get back.

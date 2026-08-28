@@ -1,0 +1,186 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+
+/* ---- timeline ---- */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  gap: var(--s4);
+  align-items: stretch;
+  animation: riseIn var(--dur) var(--ease-out) backwards;
+}
+
+.spine {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 28px;
+  flex: none;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border-strong);
+  margin-top: var(--s5);
+  flex: none;
+}
+
+.dotLocked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.dotCurrent {
+  box-shadow: 0 0 0 4px var(--accent-subtle);
+}
+
+.line {
+  flex: 1;
+  width: 2px;
+  background: var(--border-subtle);
+  margin: var(--s2) 0;
+}
+
+.card {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: var(--s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.version {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.headSpacer {
+  flex: 1;
+}
+
+.meta {
+  display: flex;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  font-size: var(--text-base);
+  color: var(--text-tertiary);
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.actions {
+  display: flex;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+/* ---- diff ---- */
+
+.diffPickers {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.select {
+  height: 38px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-md);
+  min-width: 110px;
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.diffResult {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+
+.diffGroup {
+  padding: var(--s4);
+  border-radius: var(--radius);
+  background: var(--surface-inset);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.diffLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.diffIds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+
+.diffEmpty {
+  font-size: var(--text-base);
+  color: var(--text-disabled);
+}
+
+/* ---- branch ---- */
+
+.branchRow {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.branchInput {
+  flex: 1;
+  min-width: 280px;
+}
+
+.jobRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s4);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}

@@ -13,9 +13,16 @@ class Settings(BaseSettings):
     google_api_key: str = ""
 
     gemini_model: str = "gemini-3.5-flash"
+    # Tried in order when the primary is out of quota. Free-tier per-day limits
+    # are low enough that a single-model demo can die mid-session.
+    gemini_fallback_models: str = "gemini-3.6-flash,gemini-2.5-flash,gemini-3.1-flash-lite"
     gemini_live_model: str = "gemini-3.5-flash-live"
-    image_model: str = "gemini-3.5-flash-image"
+    image_model: str = "gemini-3.1-flash-image"
+    #: "low" keeps live-session turns snappy; "" lets the model think freely.
+    gemini_thinking_level: str = "low"
+    transcribe_model: str = "gemini-3.5-transcribe"
 
+    google_search_api_key: str = ""
     pubsub_topic: str = "deckhand-jobs"
     gcs_bucket: str = ""
 
@@ -24,8 +31,16 @@ class Settings(BaseSettings):
     oauth_redirect_uri: str = "http://localhost:8080/auth/google/callback"
 
     frontend_origin: str = "http://localhost:3000"
+    #: Where this API is reachable from the browser (media URLs are absolute).
+    public_base_url: str = "http://localhost:8090"
     dev_fake_uid: str = ""
     enable_tracing: bool = False
+
+    # Local dev only: swap Firestore/Pub/Sub for on-disk stand-ins so the stack runs
+    # without Application Default Credentials. NEVER set these in prod.
+    local_store: bool = False
+    local_store_path: str = ".localstore.json"
+    worker_url: str = ""        # local Pub/Sub stand-in posts job envelopes here
 
 
 @lru_cache

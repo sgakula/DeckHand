@@ -1,0 +1,193 @@
+/* ==========================================================================
+   "The agent is working on this" treatments.
+   Registering the angle with @property is what makes a conic gradient
+   animatable at all — an unregistered custom property is a string and jumps.
+   ========================================================================== */
+
+@property --gen-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* ---- animated border ---- */
+
+.frame {
+  position: relative;
+  border-radius: inherit;
+  isolation: isolate;
+}
+
+.frame::before {
+  content: "";
+  --gen-angle: 0deg;
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--gen-angle),
+    transparent 0deg,
+    transparent 200deg,
+    var(--accent) 300deg,
+    color-mix(in oklab, var(--accent) 40%, transparent) 340deg,
+    transparent 360deg
+  );
+  /* Mask out the middle so only the 1px ring paints. */
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: genSpin 2.4s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.frame::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: 0 0 24px -6px color-mix(in oklab, var(--accent) 55%, transparent);
+  pointer-events: none;
+  animation: genBreathe 2.4s ease-in-out infinite;
+  z-index: 0;
+}
+
+@keyframes genSpin {
+  to {
+    --gen-angle: 360deg;
+  }
+}
+
+@keyframes genBreathe {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* ---- shimmering label ---- */
+
+/* Follows Google's own shimmer recipe: a narrow band at -65deg over a 400%
+   canvas, 2s linear, with the sweep finishing at 70% and holding — the pause is
+   part of the timing, which is what stops it reading as a strobe. */
+.shimmer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--text-md);
+  font-weight: 500;
+  background: linear-gradient(
+    -65deg,
+    var(--text-tertiary) 40%,
+    var(--text) 50%,
+    var(--text-tertiary) 60%
+  );
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmerSweep 2s linear infinite;
+}
+
+@keyframes shimmerSweep {
+  0% {
+    background-position: 100% 100%;
+  }
+  70%,
+  100% {
+    background-position: 0 0;
+  }
+}
+
+.sparkle {
+  flex: none;
+  color: var(--accent);
+  animation: sparklePulse 1.9s ease-in-out infinite;
+}
+
+@keyframes sparklePulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.92) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06) rotate(8deg);
+  }
+}
+
+/* ---- staged step list ---- */
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-size: var(--text-base);
+  color: var(--text-tertiary);
+  transition: color var(--dur) var(--ease);
+}
+
+.stepActive {
+  color: var(--text);
+}
+
+.stepDone {
+  color: var(--text-secondary);
+}
+
+.stepDot {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  transition:
+    border-color var(--dur) var(--ease),
+    background-color var(--dur) var(--ease);
+}
+
+.stepActive .stepDot {
+  border-color: var(--accent);
+  border-right-color: transparent;
+  animation: spin 700ms linear infinite;
+}
+
+.stepDone .stepDot {
+  border-color: var(--success);
+  background: var(--success);
+  color: var(--on-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frame::before,
+  .frame::after,
+  .shimmer,
+  .sparkle,
+  .stepActive .stepDot {
+    animation: none;
+  }
+  .shimmer {
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: var(--text-secondary);
+  }
+}

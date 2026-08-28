@@ -42,7 +42,8 @@ backend/    API service (FastAPI + google-adk). All Phase 0-2 & 5 endpoints + Li
 worker/     Background service. Pub/Sub push handler running the Phase 3/4 pipelines.
 testclient/ Single-file dev harness for exercising the API (NOT the product frontend).
             Serve with `python -m http.server 3000` from testclient/ and open it.
-frontend/   (owned by the frontend dev — the real Next.js app lives here)
+frontend/   The Next.js app: one screen per phase (brief, sources, outline, deck,
+            rehearse, present, debrief, versions). See "Frontend" below.
 deploy/     setup.sh (one-time project setup), deploy.sh (build+deploy), cloudbuild-worker.yaml
 firestore.rules  Client read access for realtime UI; all writes server-side.
 ```
@@ -86,7 +87,91 @@ uvicorn app.main:app --reload --port 8081
 #     -d '{"message":{"data":"'$(echo -n '{"job_id":"<id>"}' | base64)'"}}'
 ```
 
+```bash
+# 4) frontend (third terminal)
+cd frontend
+npm install
+npm run dev            # http://localhost:3000
+```
+
 Smoke test the API: `curl localhost:8080/healthz` → `{"ok": true}`.
+
+### Running without Google Cloud credentials
+
+Firestore and Pub/Sub need Application Default Credentials, which a laptop
+without `gcloud auth application-default login` does not have. For UI work you
+can swap both for on-disk stand-ins — Gemini still runs for real via
+`GOOGLE_API_KEY`:
+
+```bash
+# in backend/.env and worker/.env
+GOOGLE_GENAI_USE_VERTEXAI=false
+GOOGLE_API_KEY=<your Gemini API key>
+LOCAL_STORE=true
+LOCAL_STORE_PATH=/absolute/path/to/repo/.localstore.json   # shared by both services
+WORKER_URL=http://localhost:8081                           # local Pub/Sub stand-in
+```
+
+`app/localstore.py` implements the slice of the Firestore client the repository
+layer uses, backed by one JSON file; `pubsub.enqueue` POSTs the push envelope
+straight at the worker. Everything through interview → outline → deck → dry-run →
+lock → talk → notes works end to end this way. The post-talk pipeline still stops
+at the first Google Workspace call (`428 Google account not connected`) until you
+finish the OAuth flow — the notes and the locked deck are unaffected.
+
+**Never set `LOCAL_STORE` in Cloud Run.**
+
+### Frontend
+
+Next.js App Router + TypeScript, CSS Modules over a token layer in
+`app/globals.css`. Runtime dependencies are `next`, `react`, `react-dom` and
+nothing else — no UI kit, no icon package, no animation library.
+
+**Design system, and why it is the way it is**
+
+- **Dark by default.** A deck is a white document; dark chrome makes it the
+  brightest thing on screen. `SlideCanvas` deliberately keeps its own light
+  palette in both themes, because that is how the deck will actually look on a
+  projector. Light theme is a full peer — toggle in the header.
+- **Type is Google Sans** (`next/font/google`), which became SIL OFL in
+  December 2025, plus Google Sans Code for mono. Dark mode applies `GRAD -25`
+  so light-on-dark text is optically corrected without any metric change.
+- **Motion uses Material 3 Expressive's published spring physics** — damping
+  ratio and stiffness solved and sampled into CSS `linear()`, because a
+  `cubic-bezier` cannot overshoot and settle the way a spring does. The rule
+  the system enforces: *spatial* springs (position, size) may overshoot;
+  *effects* springs (colour, opacity) are critically damped and never bounce.
+  Buttons morph from pill to rounded-rect while pressed.
+- **View transitions** are on via React's `ViewTransition` (bundled React
+  canary in the App Router). Phase navigation slides directionally; a deck
+  cover morphs from the dashboard card into the workspace. `ViewTransition.tsx`
+  wraps it so the app still renders if the export is absent.
+- **Agent presence** is a deliberate vocabulary, in `ui/Generating.tsx`: a
+  shimmer label while the agent thinks, a conic gradient frame around whatever
+  it is currently rewriting, and a step trace for multi-stage work.
+- Everything honours `prefers-reduced-motion`.
+
+`/styleguide` renders every primitive and all nine slide templates on one page.
+It is the fastest way to check a change did not break something elsewhere.
+
+```
+app/p/[pid]/{brief,sources,outline,deck,rehearse,present,debrief,versions}
+components/SlideCanvas.tsx   renders a Slide's blocks as a real 16:9 slide,
+                             one layout per template, sized in cqw so the same
+                             component serves the thumbnail and the stage
+components/PhaseRail.tsx     phase nav; states derive from API data (lib/phases.ts)
+lib/api.ts                   typed client for every endpoint
+lib/useSpeech.ts             browser STT for the talk's transcript path
+```
+
+Point it at the API with `frontend/.env.local`:
+
+```
+NEXT_PUBLIC_API_BASE=http://localhost:8080
+```
+
+The API's `FRONTEND_ORIGIN` must match the frontend's origin or CORS will block
+every call. If you move either service off its default port, update both.
 
 ## Deploy to Google Cloud
 
@@ -116,6 +201,10 @@ POST /presentations/{pid}/talks/start       then stream audio to WS /live/talk/{
 POST /presentations/{pid}/talks/{tkid}/stop -> post-talk pipeline (Slides, email, tasks, suggestions)
 POST /presentations/{pid}/feedback          -> preference profile update
 POST /presentations/{pid}/versions/{v}/branch   agent-generated variant
+
+GET  /presentations/{pid}/talks             talk history, most recent first
+GET  /presentations/{pid}/activity          build-session event stream
+GET  /jobs/{jobId}                          background-job status
 ```
 
 ## Proof it runs on Google Cloud (for judging)

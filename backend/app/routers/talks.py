@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from ..agents.notetaker import take_notes
 from ..deps import Uid
 from ..firestore import (
-    append_talk_data, get_talk, get_version, new_id, save_talk,
+    append_talk_data, get_talk, get_version, list_talks, list_versions, new_id, save_talk,
 )
 from ..pubsub import enqueue
 from ..schemas import Job, Talk, now
@@ -29,6 +29,11 @@ async def start(pid: str, uid: str = Uid):
     p = _member(pid, uid)
     deck = get_version(pid, p.current_version)
     if deck is None or not deck.locked:
+        # Opening the deck after a lock lazily creates an unlocked draft, so
+        # current_version is not reliably the thing to present. Fall back to the
+        # most recent locked version instead of refusing.
+        deck = next((v for v in reversed(list_versions(pid)) if v.locked), None)
+    if deck is None:
         raise HTTPException(409, "lock the deck before presenting")
     talk = Talk(id=new_id(), presentation_id=pid, version=deck.version)
     save_talk(talk)
@@ -64,6 +69,13 @@ async def stop(pid: str, tkid: str, uid: str = Uid):
               presentation_id=pid, version=talk.version, talk_id=tkid)
     enqueue(job)
     return {"job_id": job.id}
+
+
+@router.get("")
+async def index(pid: str, uid: str = Uid):
+    """Most-recent-first, so the debrief screen can find a talk after a reload."""
+    _member(pid, uid)
+    return list_talks(pid)
 
 
 @router.get("/{tkid}")

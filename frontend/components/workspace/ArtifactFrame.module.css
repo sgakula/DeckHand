@@ -1,0 +1,47 @@
+.wrap {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #fff;
+  border-radius: inherit;
+  /* Artifacts are documents. They keep their own light ground in either theme,
+     the way a page does on a desk. */
+  color-scheme: light;
+}
+
+.frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+  background: #fff;
+  /* The canvas is a gallery, not a browser: clicks select the card. */
+  pointer-events: none;
+}
+
+.interactive {
+  pointer-events: auto;
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    #f2f4f7 30%,
+    #e8ebf0 46%,
+    #f2f4f7 62%
+  );
+  background-size: 260% 100%;
+  animation: shimmerSweep 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmerSweep {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -80% 0;
+  }
+}

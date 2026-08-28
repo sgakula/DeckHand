@@ -1,0 +1,11 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Deckhand//EN
+BEGIN:VEVENT
+UID:5314c01daced48838a39a40c8b99c871@deckhand
+DTSTART:20260903T140000
+DTEND:20260903T143000
+SUMMARY:Pricing Sign-off with Finance (Autopilot)
+DESCRIPTION:Held by Deckhand for Tomás, Amara, Jules, finance@company.com
+END:VEVENT
+END:VCALENDAR

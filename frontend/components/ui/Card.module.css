@@ -1,0 +1,92 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  /* The inset top highlight is what makes a dark surface read as lit from
+     above rather than as a painted rectangle. It is transparent in light mode. */
+  box-shadow: inset 0 1px 0 var(--surface-highlight);
+  transition:
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    background-color var(--dur) var(--ease),
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+
+.pad {
+  padding: var(--s5);
+}
+
+.padSm {
+  padding: var(--s4);
+}
+
+.padLg {
+  padding: var(--s6);
+}
+
+.raised {
+  box-shadow: inset 0 1px 0 var(--surface-highlight), var(--shadow-2);
+  border-color: var(--border-subtle);
+}
+
+.interactive {
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  display: block;
+}
+
+.interactive:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  box-shadow: inset 0 1px 0 var(--surface-highlight), var(--shadow-3);
+  transform: translateY(-2px);
+}
+
+.interactive:active {
+  transform: translateY(0);
+  box-shadow: inset 0 1px 0 var(--surface-highlight), var(--shadow-1);
+}
+
+.selected {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 1px 0 var(--surface-highlight),
+    0 0 0 1px var(--accent),
+    0 0 20px -6px var(--accent-glow);
+}
+
+/* ---- header / section helpers ---- */
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin-bottom: var(--s4);
+}
+
+.headerText {
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin-top: var(--s1);
+  font-size: var(--text-base);
+  color: var(--text-tertiary);
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: none;
+}

@@ -1,0 +1,332 @@
+/* ---- section builder strip ---- */
+
+.sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-bottom: var(--s5);
+}
+
+.sectionChip {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) var(--s2) var(--s2) var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  flex: none;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.sectionChipBuilt {
+  border-color: var(--border-subtle);
+  background: var(--surface-inset);
+}
+
+.sectionName {
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sectionChipBuilt .sectionName {
+  color: var(--text-tertiary);
+}
+
+.sectionCount {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  flex: none;
+}
+
+/* ---- main split ---- */
+
+.split {
+  display: grid;
+  grid-template-columns: 216px minmax(0, 1fr);
+  gap: var(--s5);
+  align-items: start;
+}
+
+
+
+/* ---- thumbnail rail ---- */
+
+.thumbs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  position: sticky;
+  top: calc(var(--header-h) + var(--s5));
+  max-height: calc(100vh - var(--header-h) - var(--s8));
+  overflow-y: auto;
+  padding-right: var(--s1);
+}
+
+.thumb {
+  display: flex;
+  gap: var(--s2);
+  align-items: flex-start;
+  text-align: left;
+  width: 100%;
+  border-radius: var(--radius);
+  padding: 2px;
+  border: 2px solid transparent;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.thumb:hover {
+  border-color: var(--border);
+}
+
+.thumbActive {
+  border-color: var(--accent);
+}
+
+.thumbIndex {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  width: 16px;
+  flex: none;
+  text-align: right;
+  padding-top: var(--s2);
+  font-variant-numeric: tabular-nums;
+}
+
+.thumbCanvas {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.thumbBadge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--success);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+/* ---- detail pane ---- */
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  min-width: 0;
+}
+
+.canvasWrap {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-2);
+}
+
+.detailBar {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.detailTitle {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detailSpacer {
+  flex: 1;
+}
+
+.badges {
+  display: flex;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+/* ---- notes ---- */
+
+.notes {
+  font-size: var(--text-md);
+  line-height: 1.65;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+  white-space: pre-wrap;
+}
+
+/* ---- blocks table ---- */
+
+.blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.block {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  gap: var(--s3);
+  align-items: baseline;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.block:hover {
+  background: var(--surface-hover);
+}
+
+.blockKind {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-tertiary);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.blockText {
+  color: var(--text);
+  line-height: 1.5;
+  text-wrap: pretty;
+  min-width: 0;
+}
+
+.blockValue {
+  font-weight: 600;
+  color: var(--accent-text);
+  margin-right: var(--s2);
+}
+
+.blockRef {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  justify-self: end;
+}
+
+.blockUnsourced {
+  color: var(--warning-text);
+}
+
+/* ---- edit composer ---- */
+
+.editRow {
+  display: flex;
+  gap: var(--s2);
+  align-items: flex-end;
+}
+
+.editInput {
+  flex: 1;
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+.suggestion {
+  padding: var(--s1) var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  background: var(--surface);
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.suggestion:hover {
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+  color: var(--accent-text);
+}
+
+.changeLog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin-top: var(--s4);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.changeItem {
+  display: flex;
+  gap: var(--s2);
+  align-items: flex-start;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  animation: riseIn var(--dur) var(--ease-out);
+}
+
+.changeIcon {
+  color: var(--success);
+  flex: none;
+  margin-top: 2px;
+}
+
+/* ---- build all bar ---- */
+
+.buildBar {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.buildText {
+  flex: 1;
+  min-width: 180px;
+  font-size: var(--text-base);
+  color: var(--text-tertiary);
+}
+
+/* ---- responsive (must stay last: no specificity boost from @media) ---- */
+
+@media (max-width: 980px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Stacked full-width thumbnails would push the editor below a wall of slides,
+     so the rail becomes a filmstrip instead. */
+  .thumbs {
+    position: static;
+    flex-direction: row;
+    max-height: none;
+    overflow-x: auto;
+    padding-bottom: var(--s2);
+  }
+
+  .thumb {
+    width: 172px;
+    flex: none;
+  }
+
+  .thumbIndex {
+    display: none;
+  }
+}

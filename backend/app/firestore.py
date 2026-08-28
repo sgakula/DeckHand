@@ -15,9 +15,14 @@ _db: Optional[firestore.Client] = None
 def db() -> firestore.Client:
     global _db
     if _db is None:
-        # Explicit project: .env values live in Settings, not os.environ, so the
-        # client must not fall back to the ADC default project.
-        _db = firestore.Client(project=settings().google_cloud_project or None)
+        s = settings()
+        if s.local_store:
+            from .localstore import LocalClient
+            _db = LocalClient(s.local_store_path)
+        else:
+            # Explicit project: .env values live in Settings, not os.environ, so the
+            # client must not fall back to the ADC default project.
+            _db = firestore.Client(project=s.google_cloud_project or None)
     return _db
 
 
@@ -112,6 +117,11 @@ def get_build_events(pid: str, bsid: str, limit: int = 200) -> list[dict]:
 
 def save_talk(t: Talk) -> None:
     db().document(f"presentations/{t.presentation_id}/talks/{t.id}").set(t.model_dump())
+
+
+def list_talks(pid: str) -> list[Talk]:
+    col = db().collection(f"presentations/{pid}/talks").stream()
+    return sorted((Talk(**_data(s)) for s in col), key=lambda t: t.started_at, reverse=True)
 
 
 def get_talk(pid: str, tkid: str) -> Optional[Talk]:

@@ -22,7 +22,7 @@
   <p style="font-size:12px">Throwaway harness for testing the backend. The real frontend lives in <b>frontend/</b> and does not depend on this file. Serve with: <code>python -m http.server 3000</code> (matches the default CORS origin) and run the API with <code>DEV_FAKE_UID=demo-user</code>.</p>
 
   <fieldset><legend>0 · Config</legend>
-    API base <input id="api" value="http://localhost:8080">
+    API base <input id="api" value="http://localhost:8090">
     Bearer token (blank = DEV_FAKE_UID mode) <input id="token" value="">
     <button onclick="call('GET','/healthz')">healthz</button>
     <button onclick="call('GET','/auth/google/start').then(r=>r&&window.open(r.auth_url))">connect Google</button>

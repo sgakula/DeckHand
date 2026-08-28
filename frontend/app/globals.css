@@ -1,0 +1,738 @@
+/* ==========================================================================
+   Deckhand design system
+   Tokens first, then reset, then base elements. Component styling lives in
+   CSS modules next to each component; only genuinely global rules go here.
+   ========================================================================== */
+
+:root {
+  /* ---- palette ----------------------------------------------------------
+     Deckhand runs dark by default. A deck is a white document; dark chrome
+     makes it the brightest thing on screen, the way every editing tool for a
+     visual artefact does it. The light theme is a full peer, not an
+     afterthought.                                                            */
+
+  /* Iris — the brand accent. Deliberately not Google blue: this app sits next
+     to Slides and needs to read as its own product. */
+  --iris-100: #e8eaff;
+  --iris-200: #ccd2ff;
+  --iris-300: #a9b3ff;
+  --iris-400: #8b94ff;
+  --iris-500: #7c86ff;
+  --iris-600: #5f66f0;
+  --iris-700: #4a4fd4;
+  --iris-800: #3a3ea8;
+  --iris-900: #23264f;
+  --iris-950: #15172e;
+
+  /* Used only where the agent itself is acting. Deliberately a two-stop tonal
+     ramp inside one hue rather than the indigo→violet→cyan sweep every AI
+     product ships — that specific gradient traces back to a Tailwind default
+     and now reads as a template. Restraint is the differentiator here. */
+  --agent-from: var(--iris-500);
+  --agent-to: var(--iris-300);
+  --agent-gradient: linear-gradient(100deg, var(--agent-from), var(--agent-to));
+
+  /* ---- semantic (light) ----------------------------------------------- */
+  --bg: #ffffff;
+  --bg-sunken: #f6f7f9;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-hover: #f6f7f9;
+  --surface-active: #eef0f4;
+  --surface-inset: #f6f7f9;
+  --surface-highlight: rgb(255 255 255 / 0);
+
+  --border: #d9dde4;
+  --border-subtle: #e8eaee;
+  --border-strong: #bcc2cc;
+
+  --text: #14161c;
+  --text-secondary: #4a515f;
+  --text-tertiary: #6b7280;
+  --text-disabled: #9aa1ad;
+  --text-inverse: #ffffff;
+
+  --accent: var(--iris-600);
+  --accent-hover: var(--iris-700);
+  --accent-active: var(--iris-800);
+  --accent-subtle: var(--iris-100);
+  --accent-subtle-hover: var(--iris-200);
+  --accent-border: var(--iris-200);
+  --accent-text: var(--iris-700);
+  --on-accent: #ffffff;
+  --accent-glow: color-mix(in oklab, var(--iris-600) 28%, transparent);
+
+  --success: #10a37f;
+  --success-subtle: #e2f5ef;
+  --success-text: #0b7a5f;
+
+  --warning: #d97706;
+  --warning-subtle: #fdf1e0;
+  --warning-text: #a75c05;
+
+  --danger: #dc3d43;
+  --danger-subtle: #fdeaea;
+  --danger-text: #b32a30;
+
+  --info: #8b5cf6;
+  --info-subtle: #f2ecfe;
+
+  --focus-ring: var(--iris-600);
+  --overlay: rgb(16 18 24 / 0.45);
+
+  /* Grain keeps large flat areas from looking like dead plastic. Tuned to be
+     invisible as texture and only felt as depth. */
+  --grain-opacity: 0.018;
+
+  /* ---- elevation ------------------------------------------------------- */
+  --shadow-1: 0 1px 2px 0 rgb(60 64 67 / 0.14), 0 1px 3px 1px rgb(60 64 67 / 0.06);
+  --shadow-2: 0 1px 2px 0 rgb(60 64 67 / 0.16), 0 2px 6px 2px rgb(60 64 67 / 0.08);
+  --shadow-3: 0 4px 8px 3px rgb(60 64 67 / 0.1), 0 1px 3px rgb(60 64 67 / 0.16);
+  --shadow-4: 0 8px 24px 4px rgb(60 64 67 / 0.14), 0 2px 6px rgb(60 64 67 / 0.14);
+
+  /* ---- shape ----------------------------------------------------------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 999px;
+
+  /* ---- spacing (4px base) ---------------------------------------------- */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s7: 32px;
+  --s8: 40px;
+  --s9: 48px;
+  --s10: 64px;
+  --s11: 80px;
+  --s12: 96px;
+
+  /* ---- type ------------------------------------------------------------ */
+  --font-sans: var(--font-sans-loaded), "Google Sans", Roboto, system-ui,
+    -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-mono-loaded), "Google Sans Code", ui-monospace,
+    SFMono-Regular, Menlo, monospace;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 32px;
+  --text-4xl: 40px;
+
+  /* ---- motion -----------------------------------------------------------
+     Springs are Material 3 Expressive's published physics (damping ratio ζ and
+     stiffness k, mass 1), solved and sampled into linear(). A cubic-bezier
+     cannot overshoot and settle the way a spring does.
+
+     The governing rule from that system: SPATIAL springs (position, size,
+     rotation) may overshoot; EFFECTS springs (colour, opacity) are critically
+     damped and must never bounce.                                            */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.3, 0, 1, 1);
+  --ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  /* spatial, fast — ζ=0.6 k=800, peaks 9.5% over */
+  --spring-spatial-fast: linear(
+    0, 0.0306, 0.1094, 0.2188, 0.3443, 0.4741, 0.5997, 0.7147, 0.8154,
+    0.8998, 0.9673, 1.0186, 1.0549, 1.0783, 1.0909, 1.0948, 1.0921, 1.0848,
+    1.0745, 1.0627, 1.0503, 1.0384, 1.0275, 1.0179, 1.0098, 1.0033, 0.9984,
+    0.9949, 0.9926, 0.9914, 0.991, 0.9913, 0.9919, 0.9929, 0.994, 0.9952,
+    0.9963, 0.9974, 0.9983, 1
+  );
+  --spring-spatial-fast-dur: 360ms;
+
+  /* spatial, default — ζ=0.8 k=380, peaks 1.5% over */
+  --spring-spatial-default: linear(
+    0, 0.021, 0.0748, 0.1496, 0.2362, 0.3278, 0.4192, 0.5068, 0.5883,
+    0.6622, 0.7279, 0.7851, 0.834, 0.8751, 0.9092, 0.9368, 0.9588, 0.976,
+    0.9891, 0.9988, 1.0057, 1.0103, 1.0132, 1.0147, 1.0152, 1.0149, 1.0141,
+    1.013, 1.0117, 1.0103, 1.0089, 1.0076, 1.0063, 1.0052, 1.0042, 1.0033,
+    1.0026, 1.0019, 1.0014, 1
+  );
+  --spring-spatial-default-dur: 435ms;
+
+  /* spatial, slow — ζ=0.8 k=200 */
+  --spring-spatial-slow: linear(
+    0, 0.0211, 0.0749, 0.1498, 0.2365, 0.3281, 0.4195, 0.5072, 0.5887,
+    0.6627, 0.7283, 0.7854, 0.8343, 0.8755, 0.9094, 0.937, 0.959, 0.9762,
+    0.9893, 0.9989, 1.0058, 1.0104, 1.0132, 1.0147, 1.0152, 1.0149, 1.0141,
+    1.013, 1.0117, 1.0103, 1.0089, 1.0076, 1.0063, 1.0052, 1.0042, 1.0033,
+    1.0026, 1.0019, 1.0014, 1
+  );
+  --spring-spatial-slow-dur: 600ms;
+
+  /* effects, fast — ζ=1.0 k=3800, no overshoot */
+  --spring-effects-fast: linear(
+    0, 0.024, 0.0825, 0.1597, 0.2453, 0.3321, 0.4159, 0.4941, 0.5653,
+    0.629, 0.6852, 0.7342, 0.7765, 0.8128, 0.8437, 0.87, 0.8921, 0.9106,
+    0.9262, 0.9391, 0.9499, 0.9589, 0.9663, 0.9724, 0.9774, 0.9815, 0.9849,
+    0.9877, 0.99, 0.9919, 0.9934, 0.9946, 0.9956, 0.9965, 0.9971, 0.9977,
+    0.9981, 0.9985, 0.9988, 1
+  );
+  --spring-effects-fast-dur: 150ms;
+
+  /* effects, default — ζ=1.0 k=1600 */
+  --spring-effects-default: linear(
+    0, 0.0248, 0.0848, 0.1639, 0.251, 0.3392, 0.424, 0.5028, 0.5742,
+    0.6379, 0.6938, 0.7424, 0.7842, 0.8199, 0.8502, 0.8758, 0.8973, 0.9153,
+    0.9303, 0.9428, 0.9531, 0.9616, 0.9686, 0.9744, 0.9791, 0.983, 0.9862,
+    0.9888, 0.9909, 0.9926, 0.994, 0.9952, 0.9961, 0.9969, 0.9975, 0.998,
+    0.9984, 0.9987, 0.9989, 1
+  );
+  --spring-effects-default-dur: 235ms;
+
+  /* Aliases used across the app, mapped onto the two families above. */
+  --spring-smooth: var(--spring-spatial-default);
+  --spring-smooth-dur: var(--spring-spatial-default-dur);
+  --spring-bouncy: var(--spring-spatial-fast);
+  --spring-bouncy-dur: var(--spring-spatial-fast-dur);
+  --spring-snappy: var(--spring-spatial-fast);
+  --spring-snappy-dur: var(--spring-spatial-fast-dur);
+
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 320ms;
+
+  /* ---- layout ----------------------------------------------------------- */
+  --header-h: 56px;
+  --rail-w: 248px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    /* Ground is a cool near-black, not pure black: pure black kills the sense
+       of elevation and makes white slides glare. */
+    --bg: #111013;
+    --bg-sunken: #0b0a0c;
+    --surface: #191819;
+    --surface-raised: #201f21;
+    --surface-hover: #262428;
+    --surface-active: #2c2a2e;
+    --surface-inset: #141315;
+    /* A 1px top highlight is what separates a raised surface from a painted
+       rectangle in a dark UI. */
+    --surface-highlight: rgb(255 255 255 / 0.055);
+
+    --border: #353338;
+    --border-subtle: #282629;
+    --border-strong: #494650;
+
+    --text: #eceaee;
+    --text-secondary: #b0acb4;
+    --text-tertiary: #847f88;
+    --text-disabled: #5f5b63;
+    --text-inverse: #111013;
+
+    --accent: var(--iris-400);
+    --accent-hover: var(--iris-300);
+    --accent-active: var(--iris-200);
+    --accent-subtle: #1b1f3d;
+    --accent-subtle-hover: #242a52;
+    --accent-border: #343b70;
+    --accent-text: var(--iris-300);
+    --on-accent: #111013;
+    --accent-glow: color-mix(in oklab, var(--iris-400) 45%, transparent);
+
+    --success: #3ecf8e;
+    --success-subtle: #10281f;
+    --success-text: #52dba0;
+
+    --warning: #f0a836;
+    --warning-subtle: #2b2010;
+    --warning-text: #f5bd63;
+
+    --danger: #ff6b6b;
+    --danger-subtle: #2e1719;
+    --danger-text: #ff8f8f;
+
+    --info: #c084fc;
+    --info-subtle: #241a35;
+
+    --focus-ring: var(--iris-400);
+    --overlay: rgb(4 5 8 / 0.72);
+
+    --grain-opacity: 0.03;
+    --font-grade: -25;
+
+    /* Dark elevation is carried by spread and softness, not darkness. */
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.3);
+    --shadow-2: 0 2px 6px rgb(0 0 0 / 0.5), 0 6px 16px -4px rgb(0 0 0 / 0.4);
+    --shadow-3: 0 4px 12px rgb(0 0 0 / 0.5), 0 14px 32px -8px rgb(0 0 0 / 0.5);
+    --shadow-4: 0 8px 24px rgb(0 0 0 / 0.5), 0 32px 64px -16px rgb(0 0 0 / 0.6);
+  }
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Ground is a cool near-black, not pure black: pure black kills the sense
+       of elevation and makes white slides glare. */
+    --bg: #111013;
+    --bg-sunken: #0b0a0c;
+    --surface: #191819;
+    --surface-raised: #201f21;
+    --surface-hover: #262428;
+    --surface-active: #2c2a2e;
+    --surface-inset: #141315;
+    /* A 1px top highlight is what separates a raised surface from a painted
+       rectangle in a dark UI. */
+    --surface-highlight: rgb(255 255 255 / 0.055);
+
+    --border: #353338;
+    --border-subtle: #282629;
+    --border-strong: #494650;
+
+    --text: #eceaee;
+    --text-secondary: #b0acb4;
+    --text-tertiary: #847f88;
+    --text-disabled: #5f5b63;
+    --text-inverse: #111013;
+
+    --accent: var(--iris-400);
+    --accent-hover: var(--iris-300);
+    --accent-active: var(--iris-200);
+    --accent-subtle: #1b1f3d;
+    --accent-subtle-hover: #242a52;
+    --accent-border: #343b70;
+    --accent-text: var(--iris-300);
+    --on-accent: #111013;
+    --accent-glow: color-mix(in oklab, var(--iris-400) 45%, transparent);
+
+    --success: #3ecf8e;
+    --success-subtle: #10281f;
+    --success-text: #52dba0;
+
+    --warning: #f0a836;
+    --warning-subtle: #2b2010;
+    --warning-text: #f5bd63;
+
+    --danger: #ff6b6b;
+    --danger-subtle: #2e1719;
+    --danger-text: #ff8f8f;
+
+    --info: #c084fc;
+    --info-subtle: #241a35;
+
+    --focus-ring: var(--iris-400);
+    --overlay: rgb(4 5 8 / 0.72);
+
+    --grain-opacity: 0.03;
+    --font-grade: -25;
+
+    /* Dark elevation is carried by spread and softness, not darkness. */
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.3);
+    --shadow-2: 0 2px 6px rgb(0 0 0 / 0.5), 0 6px 16px -4px rgb(0 0 0 / 0.4);
+    --shadow-3: 0 4px 12px rgb(0 0 0 / 0.5), 0 14px 32px -8px rgb(0 0 0 / 0.5);
+    --shadow-4: 0 8px 24px rgb(0 0 0 / 0.5), 0 32px 64px -16px rgb(0 0 0 / 0.6);
+}
+
+/* ==========================================================================
+   Reset
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  position: relative;
+  font-variation-settings: "GRAD" var(--font-grade, 0);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+}
+
+/* A fixed film grain over the whole app. Large flat dark areas read as dead
+   plastic without it; at this opacity it is felt, not seen.
+
+   Notes that matter: the tile is desaturated inside the SVG (raw feTurbulence
+   emits independent R/G/B lattices — colour static, not grain), and this is a
+   fixed *element* rather than background-attachment:fixed, which is a silent
+   no-op on iOS Safari. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch' result='t'/%3E%3CfeColorMatrix type='saturate' values='0' in='t' result='m'/%3E%3CfeComponentTransfer in='m'%3E%3CfeFuncA type='linear' slope='0.55'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 260px;
+  mix-blend-mode: soft-light;
+}
+
+img,
+picture,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: var(--text-2xl);
+}
+h2 {
+  font-size: var(--text-xl);
+}
+h3 {
+  font-size: var(--text-lg);
+}
+
+p {
+  text-wrap: pretty;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ==========================================================================
+   Focus — visible for keyboards, quiet for mice
+   ========================================================================== */
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+::selection {
+  background: var(--accent-subtle);
+  color: var(--text);
+}
+
+/* ==========================================================================
+   Scrollbars — thin and unobtrusive
+   ========================================================================== */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-tertiary) 40%, transparent);
+  border-radius: var(--radius-full);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-tertiary) 65%, transparent);
+  background-clip: content-box;
+}
+
+/* ==========================================================================
+   Animation
+   ========================================================================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   Small global utilities (used across many components)
+   ========================================================================== */
+
+.u-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.u-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.u-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.u-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   View transitions
+   Asymmetric on purpose: outgoing content leaves fast so it stops competing
+   for attention; incoming content arrives more slowly so it can be read.
+   ========================================================================== */
+
+/* The transition overlay swallows pointer events by default. */
+::view-transition {
+  pointer-events: none;
+}
+
+:root {
+  --vt-exit: 140ms;
+  --vt-enter: 220ms;
+  --vt-move: 420ms;
+}
+
+::view-transition-group(*) {
+  animation-duration: var(--vt-move);
+}
+
+@keyframes vtFade {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes vtSlide {
+  from {
+    transform: translateX(var(--vt-offset, 0));
+  }
+  to {
+    transform: none;
+  }
+}
+
+::view-transition-old(.nav-forward) {
+  --vt-offset: -48px;
+  animation:
+    var(--vt-exit) var(--ease-in) both vtFade reverse,
+    var(--vt-move) var(--ease) both vtSlide reverse;
+}
+
+::view-transition-new(.nav-forward) {
+  --vt-offset: 48px;
+  animation:
+    var(--vt-enter) var(--ease-out) var(--vt-exit) both vtFade,
+    var(--vt-move) var(--ease) both vtSlide;
+}
+
+::view-transition-old(.nav-back) {
+  --vt-offset: 48px;
+  animation:
+    var(--vt-exit) var(--ease-in) both vtFade reverse,
+    var(--vt-move) var(--ease) both vtSlide reverse;
+}
+
+::view-transition-new(.nav-back) {
+  --vt-offset: -48px;
+  animation:
+    var(--vt-enter) var(--ease-out) var(--vt-exit) both vtFade,
+    var(--vt-move) var(--ease) both vtSlide;
+}
+
+/* Shared-element morphs settle with the standard spring. */
+::view-transition-group(.morph) {
+  animation-duration: var(--spring-smooth-dur);
+  animation-timing-function: var(--spring-smooth);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   View Transitions — the canvas → focus morph.
+   The artifact keeps one transition name across both layouts, so the browser
+   animates the same element growing rather than cross-fading two of them.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(artifact) {
+    animation-duration: var(--spring-spatial-default-dur);
+    animation-timing-function: var(--spring-spatial-default);
+  }
+
+  /* Cross-fade the contents quickly while the box springs — a slow fade on a
+     morphing element reads as a ghost. */
+  ::view-transition-old(artifact),
+  ::view-transition-new(artifact) {
+    animation-duration: 180ms;
+    animation-timing-function: var(--ease);
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 220ms;
+  }
+}
+
+/* Pointer events during a transition land on a snapshot, not the live DOM. */
+::view-transition-group(*),
+::view-transition-image-pair(*) {
+  pointer-events: none;
+}

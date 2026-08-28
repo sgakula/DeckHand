@@ -40,3 +40,6 @@ Thumbs.db
 *.log
 .scratch/
 deckhand/*
+# local dev datastore (contains real content, never commit)
+.localstore.json
+*.localstore.json.*.tmp

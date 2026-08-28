@@ -1,0 +1,140 @@
+/* ---- spinner ---- */
+
+.spinner {
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 700ms linear infinite;
+  flex: none;
+}
+
+.center {
+  display: grid;
+  place-items: center;
+  padding: var(--s10) var(--s4);
+  gap: var(--s4);
+  color: var(--text-tertiary);
+  font-size: var(--text-base);
+}
+
+/* ---- skeleton ---- */
+
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--surface-inset) 25%,
+    var(--surface-active) 37%,
+    var(--surface-inset) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ---- empty state ---- */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--s3);
+  padding: var(--s10) var(--s6);
+  animation: riseIn var(--dur-slow) var(--ease-out);
+}
+
+.emptyCompact {
+  padding: var(--s7) var(--s5);
+}
+
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--surface-inset);
+  color: var(--text-tertiary);
+  margin-bottom: var(--s1);
+}
+
+.emptyTitle {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: var(--text);
+}
+
+.emptyBody {
+  font-size: var(--text-md);
+  color: var(--text-tertiary);
+  max-width: 46ch;
+  text-wrap: pretty;
+}
+
+.emptyActions {
+  display: flex;
+  gap: var(--s2);
+  margin-top: var(--s2);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ---- inline alert ---- */
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  border: 1px solid transparent;
+  animation: riseIn var(--dur) var(--ease-out);
+}
+
+.alertIcon {
+  flex: none;
+  margin-top: 1px;
+}
+
+.alertBody {
+  min-width: 0;
+  flex: 1;
+  text-wrap: pretty;
+}
+
+.alertTitle {
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.alertDanger {
+  background: var(--danger-subtle);
+  color: var(--danger-text);
+  border-color: color-mix(in srgb, var(--danger) 25%, transparent);
+}
+
+.alertWarning {
+  background: var(--warning-subtle);
+  color: var(--warning-text);
+  border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+}
+
+.alertSuccess {
+  background: var(--success-subtle);
+  color: var(--success-text);
+  border-color: color-mix(in srgb, var(--success) 25%, transparent);
+}
+
+.alertInfo {
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+  border-color: var(--accent-border);
+}
+
+.alertActions {
+  display: flex;
+  gap: var(--s2);
+  flex: none;
+}
