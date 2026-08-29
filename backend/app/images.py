@@ -46,7 +46,12 @@ def generate(prompt: str) -> tuple[str, bool]:
     stall a live session, so exhaustion degrades to the SVG stand-in."""
     for model in _chain():
         try:
-            client = genai.Client(api_key=settings().google_api_key)
+            s = settings()
+            if s.google_genai_use_vertexai:
+                client = genai.Client(vertexai=True, project=s.google_cloud_project,
+                                      location=s.google_cloud_location)
+            else:
+                client = genai.Client(api_key=s.google_api_key)
             resp = client.models.generate_content(
                 model=model, contents=f"{prompt}. {_ART_DIRECTION}"
             )

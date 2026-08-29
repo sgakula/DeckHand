@@ -9,10 +9,13 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { ShimmerLabel } from "@/components/ui/Generating";
 import { LoadingBlock, Alert } from "@/components/ui/Status";
 import { useToast } from "@/components/ui/Toast";
-import { api } from "@/lib/api";
+import { api, liveSocketUrl } from "@/lib/api";
 import { clockTime, errorMessage } from "@/lib/format";
 import { withViewTransition } from "@/lib/viewTransition";
 import { useSpeech } from "@/lib/useSpeech";
+import { useRestSpeech } from "@/lib/useRestSpeech";
+import { useLiveAudio } from "@/lib/useLiveAudio";
+import { guestName, setGuestName } from "@/lib/identity";
 import { SCRIPT, SESSION_TITLE, SPEAKERS, scriptProgress, speakerColor } from "@/lib/script";
 import type { Artifact } from "@/lib/artifacts";
 import type { Workspace, WorkspacePage } from "@/lib/types";
@@ -56,6 +59,27 @@ export default function WorkspacePage() {
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Scripted-demo mode is strictly opt-in: open /w/new?demo (or any workspace
+  // with ?demo) to get the canned meeting, its play controls, and its cast.
+  // Without the flag the room is real people only.
+  const [demoMode, setDemoMode] = useState(false);
+  // Live OAuth status drives the tool chips; null until known.
+  const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
+  useEffect(() => {
+    api.googleStatus().then((s) => setGoogleConnected(s.connected)).catch(() => undefined);
+  }, []);
+  useEffect(() => {
+    setDemoMode(new URLSearchParams(window.location.search).has("demo"));
+  }, []);
+  // Who this browser is in the room. Empty until the person names themselves.
+  const [myName, setMyName] = useState("");
+  const [askName, setAskName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  useEffect(() => {
+    const known = guestName();
+    if (known) setMyName(known);
+    else setAskName(true);
+  }, []);
   const [activeId, setActiveId] = useState<string>("");
   const [thinking, setThinking] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -79,14 +103,15 @@ export default function WorkspacePage() {
     let cancelled = false;
     (async () => {
       try {
+        const demo = new URLSearchParams(window.location.search).has("demo");
         const w =
           id === "new"
-            ? await api.createWorkspace(SESSION_TITLE, "presentation")
-            : await api.getWorkspace(id);
+            ? await api.createWorkspace(demo ? SESSION_TITLE : "Working session", "presentation")
+            : await api.joinWorkspace(id); // idempotent: the link IS the invite
         if (cancelled) return;
         setWorkspace(w);
         setActiveId(w.pages[0]?.id ?? "");
-        if (id === "new") router.replace(`/w/${w.id}`);
+        if (id === "new") router.replace(`/w/${w.id}${demo ? "?demo" : ""}`);
       } catch (err) {
         if (!cancelled) setLoadError(errorMessage(err));
       }
@@ -101,10 +126,6 @@ export default function WorkspacePage() {
     playUiRef.current = playUi;
   });
 
-  useEffect(() => {
-    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
 
   useEffect(() => {
     feedEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -134,6 +155,14 @@ export default function WorkspacePage() {
     try {
       while (queue.current.length) {
         const turn = queue.current.shift()!;
+        // Coalesce the backlog: an agent turn takes seconds while speech keeps
+        // arriving, so consecutive windows from the same speaker are merged
+        // into ONE utterance instead of one model turn each. The agent hears
+        // what was actually said; the queue can no longer snowball.
+        while (queue.current[0]?.speaker === turn.speaker) {
+          turn.text += " " + queue.current.shift()!.text;
+        }
+        setQueued(queue.current.length);
         const current = wsRef.current;
         if (!current) break;
         setThinking(true);
@@ -155,8 +184,16 @@ export default function WorkspacePage() {
 
   const say = useCallback(
     (speaker: string, text: string) => {
-      if (!text.trim()) return;
-      queue.current.push({ speaker, text: text.trim() });
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      // Mic noise guard: stray fragments ("zero", "00:00", "uh") each cost a
+      // full agent turn and clog the queue. Require a real sentence — unless
+      // the agent just asked the group a question, where "no" is an answer.
+      const awaitingAnswer = Boolean(wsRef.current?.pending_question);
+      const words = trimmed.split(/\s+/).length;
+      const looksLikeSpeech = words >= 3 || trimmed.length >= 18;
+      if (!awaitingAnswer && !looksLikeSpeech) return;
+      queue.current.push({ speaker, text: trimmed });
       setQueued(queue.current.length);
       void drain().then(() => setQueued(queue.current.length));
     },
@@ -212,7 +249,11 @@ export default function WorkspacePage() {
 
   const stopScript = useCallback(() => {
     playing.current = false;
-  }, []);
+    // Instant feedback: the loop still finishes the utterance already in
+    // flight (a model turn cannot be recalled), then halts.
+    setPlayUi("idle");
+    toast.show("Pausing after the current line finishes");
+  }, [toast]);
 
   const answer = useCallback(
     async (choice: string) => {
@@ -273,11 +314,72 @@ export default function WorkspacePage() {
     [workspace, applyResult, toast],
   );
 
-  // Your real voice goes in as "You"; teammates are injected for a solo demo.
-  const speech = useSpeech({
-    onFinalText: (text) => say("You", text),
+  // Your real voice goes in under your chosen name; scripted teammates are
+  // injected only for the solo demo.
+  const browserSpeech = useSpeech({
+    onFinalText: (text) => say(myName || "You", text),
     windowSeconds: 6,
   });
+
+  // Brave ships a SpeechRecognition that looks supported but returns nothing
+  // (the backend was stripped). There — or when browser STT errors — capture
+  // raw PCM instead and let the backend's Gemini transcription do the work.
+  const restSpeech = useRestSpeech({
+    onAudio: async (pcmBase64) => {
+      const wid = wsRef.current?.id;
+      if (!wid) return;
+      try {
+        const { text } = await api.transcribeAudio(wid, pcmBase64);
+        if (text) say(myName || "You", text);
+      } catch (err) {
+        toast.error(errorMessage(err));
+      }
+    },
+  });
+  const [useRest, setUseRest] = useState(false);
+  useEffect(() => {
+    const braveish = Boolean((navigator as { brave?: unknown }).brave);
+    if (braveish || !browserSpeech.supported) setUseRest(true);
+  }, [browserSpeech.supported]);
+  useEffect(() => {
+    if (browserSpeech.error) setUseRest(true);
+  }, [browserSpeech.error]);
+
+  // Primary mic: Gemini Live via the backend broker - streaming captions in
+  // every Chromium browser, utterances split on natural pauses server-side.
+  // Any Live failure drops to browser STT, then to the REST PCM fallback.
+  const liveMic = useLiveAudio({
+    wsUrl: workspace ? liveSocketUrl(`/live/session/${workspace.id}`) : null,
+    onUtterance: (text) => say(myName || "You", text),
+  });
+  const [liveOk, setLiveOk] = useState(true);
+  useEffect(() => {
+    if (liveMic.error) setLiveOk(false);
+  }, [liveMic.error]);
+
+  const speech =
+    liveOk && liveMic.supported && workspace
+      ? {
+          supported: true,
+          listening: liveMic.active,
+          error: liveMic.error,
+          interim: liveMic.caption,
+          start: () => void liveMic.start(),
+          stop: liveMic.stop,
+        }
+      : useRest
+        ? restSpeech
+        : browserSpeech;
+
+  // The session is live once someone is actually talking (mic on, script
+  // playing, or a transcript exists) - never merely because the page opened.
+  const isLive =
+    speech.listening || playUi !== "idle" || (workspace?.transcript.length ?? 0) > 0;
+  useEffect(() => {
+    if (!isLive) return;
+    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [isLive]);
 
   // ---- derived -----------------------------------------------------------
 
@@ -287,10 +389,16 @@ export default function WorkspacePage() {
   const pending = workspace?.pending_question ?? null;
 
   const speakers = useMemo(() => {
-    const names = new Set<string>(Object.keys(SPEAKERS));
+    // Real people first. The scripted personas appear only once the demo
+    // script is actually contributing to this workspace's transcript.
+    const names = new Set<string>();
+    names.add(myName || "You");
+    const scriptRunning =
+      demoMode && (playUi !== "idle" || scriptProgress(workspace?.transcript ?? []) > 0);
+    if (scriptRunning) Object.keys(SPEAKERS).forEach((n) => names.add(n));
     workspace?.transcript.forEach((t) => names.add(t.speaker));
     return [...names];
-  }, [workspace]);
+  }, [workspace, myName, playUi, demoMode]);
 
   /** How far through the script we are, derived from the server transcript. */
   const sent = scriptProgress(workspace?.transcript ?? []);
@@ -329,31 +437,80 @@ export default function WorkspacePage() {
         </Link>
         <span className={styles.name}>{workspace.title}</span>
         <span className={styles.kindChip}>{workspace.kind}</span>
-        <span className={styles.livePill}>
-          <span className={styles.liveDot} />
-          LIVE {clockTime(elapsed)}
-        </span>
+        {isLive ? (
+          <span className={styles.livePill}>
+            <span className={styles.liveDot} />
+            LIVE {clockTime(elapsed)}
+          </span>
+        ) : (
+          <span className={styles.kindChip}>READY</span>
+        )}
 
         <span className={styles.barSpacer} />
 
         <div className={styles.tools}>
-          {TOOLS.map((tool) => (
-            <span
-              key={tool.id}
-              className={[styles.tool, !tool.connected && styles.toolOff]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              <Icon name={tool.icon} size={13} />
-              {tool.label}
-            </span>
-          ))}
+          {TOOLS.map((tool) => {
+            // One Google connection powers every Workspace tool; the chips
+            // reflect the live OAuth status, not a hardcoded list.
+            const connected = googleConnected ?? tool.connected;
+            return (
+              <span
+                key={tool.id}
+                className={[styles.tool, !connected && styles.toolOff]
+                  .filter(Boolean)
+                  .join(" ")}
+                title={connected ? "Connected to your Google account" : "Not connected"}
+              >
+                <Icon name={tool.icon} size={13} />
+                {tool.label}
+              </span>
+            );
+          })}
         </div>
 
-        <Button variant="secondary" size="sm" leading={<Icon name="users" size={15} />}>
+        <Button
+          variant="secondary"
+          size="sm"
+          leading={<Icon name="users" size={15} />}
+          onClick={() => {
+            void navigator.clipboard
+              .writeText(window.location.href)
+              .then(() => toast.show("Invite link copied — anyone who opens it joins this session"))
+              .catch(() => toast.show(window.location.href));
+          }}
+        >
           Invite
         </Button>
       </header>
+
+      {askName && (
+        <div className={styles.nameGate} role="dialog" aria-label="Join the session">
+          <form
+            className={styles.nameCard}
+            onSubmit={(e) => {
+              e.preventDefault();
+              const name = nameDraft.trim();
+              if (!name) return;
+              setGuestName(name);
+              setMyName(name);
+              setAskName(false);
+            }}
+          >
+            <h2>Join the session</h2>
+            <p>Pick the name teammates will see next to what you say.</p>
+            <input
+              autoFocus
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              placeholder="Your name"
+              maxLength={40}
+            />
+            <Button variant="primary" type="submit" disabled={!nameDraft.trim()}>
+              Join
+            </Button>
+          </form>
+        </div>
+      )}
 
       <div className={styles.body}>
         <main className={styles.stage}>
@@ -363,7 +520,7 @@ export default function WorkspacePage() {
                 <ShimmerLabel>Following the conversation…</ShimmerLabel>
               </span>
             )}
-            {sent === 0 && playUi === "idle" && !thinking && (
+            {demoMode && sent === 0 && playUi === "idle" && !thinking && (
               <button
                 type="button"
                 className={styles.stagePlay}
@@ -496,8 +653,10 @@ export default function WorkspacePage() {
           <div className={styles.feed}>
             {workspace.events.length === 0 && (
               <span className={styles.listening}>
-                <Icon name="mic" size={14} />
-                Listening for the discussion…
+                <Icon name={isLive ? "mic" : "micOff"} size={14} />
+                {isLive
+                  ? "Listening for the discussion…"
+                  : "Session hasn't started — turn on the mic, type, or press play."}
               </span>
             )}
 
@@ -661,7 +820,7 @@ export default function WorkspacePage() {
           onClick={() => (speech.listening ? speech.stop() : speech.start())}
           leading={<Icon name={speech.listening ? "mic" : "micOff"} size={16} />}
         />
-        {sent < SCRIPT.length && playUi !== "awaiting" && (
+        {demoMode && sent < SCRIPT.length && playUi !== "awaiting" && (
           <Button
             variant="secondary"
             size="sm"
@@ -706,7 +865,9 @@ export default function WorkspacePage() {
               ? `Deckhand is thinking · ${queued - 1} queued`
               : thinking
                 ? "Deckhand is thinking"
-                : "Deckhand is listening"}
+                : isLive
+                  ? "Deckhand is listening"
+                  : "Deckhand is ready"}
           </span>
         </div>
 

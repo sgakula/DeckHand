@@ -74,7 +74,18 @@ async function request<T>(
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["content-type"] = "application/json";
-  if (authToken) headers.authorization = `Bearer ${authToken}`;
+  if (authToken) {
+    headers.authorization = `Bearer ${authToken}`;
+  } else if (typeof window !== "undefined") {
+    // Invite-link guests: stable per-browser identity (see lib/identity.ts).
+    const { guestId, guestName } = await import("@/lib/identity");
+    const gid = guestId();
+    if (gid) {
+      headers["x-guest-id"] = gid;
+      const name = guestName();
+      if (name) headers["x-guest-name"] = name;
+    }
+  }
 
   let res: Response;
   try {
@@ -205,6 +216,9 @@ export const api = {
     get<Workspace[]>("/workspaces", init),
   createWorkspace: (title: string, kind: WorkspaceKind) =>
     post<Workspace>("/workspaces", { title, kind }),
+  joinWorkspace: (wid: string) => post<Workspace>(`/workspaces/${wid}/join`),
+  transcribeAudio: (wid: string, pcm_base64: string) =>
+    post<{ text: string }>(`/workspaces/${wid}/transcribe`, { pcm_base64 }),
   getWorkspace: (wid: string, init?: { signal?: AbortSignal }) =>
     get<Workspace>(`/workspaces/${wid}`, init),
   /** One turn of the conversation. The agent decides act / hold / ask. */

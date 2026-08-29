@@ -20,11 +20,21 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from .config import settings
-from . import demo_drive
+from . import demo_drive, integrations
 from .images import MEDIA_DIR
 from .schemas import SourceFact
 
 log = logging.getLogger(__name__)
+
+
+def _genai_client():
+    """Vertex on Cloud Run (service account), API key locally — same as agents."""
+    from google import genai
+    s = settings()
+    if s.google_genai_use_vertexai:
+        return genai.Client(vertexai=True, project=s.google_cloud_project,
+                            location=s.google_cloud_location)
+    return genai.Client(api_key=s.google_api_key)
 
 
 @dataclass
@@ -44,13 +54,9 @@ class ToolResult:
 
 def web_search(query: str, uid: str = "") -> ToolResult:
     """Live Google Search grounding: real results, real source domains."""
-    from google import genai
     from google.genai import types as gt
 
-    client = genai.Client(
-        api_key=settings().google_api_key,
-        http_options=gt.HttpOptions(timeout=60_000),
-    )
+    client = _genai_client()
     resp = client.models.generate_content(
         model=settings().gemini_model,
         contents=(
@@ -86,7 +92,18 @@ def web_search(query: str, uid: str = "") -> ToolResult:
 
 
 def drive_read(file_hint: str, uid: str = "") -> ToolResult:
-    """Parse the matching file in the connected drive folder for real."""
+    """Parse the matching spreadsheet — the user's REAL Drive when their Google
+    account is connected, the local demo folder otherwise."""
+    if integrations.is_connected(uid):
+        try:
+            name, facts = integrations.drive_read(uid, file_hint)
+            if name:
+                return ToolResult(
+                    True, f"Read {name} from your Google Drive — pulled {len(facts)} figures",
+                    facts, {"file": name, "source": "google-drive"},
+                )
+        except Exception as exc:  # noqa: BLE001 - fall back rather than sink the session
+            log.warning("real drive_read failed, falling back to demo folder: %s", exc)
     name, facts = demo_drive.read_file(file_hint)
     if not name:
         return ToolResult(False, "No matching file in the drive folder", [], {})
@@ -108,8 +125,18 @@ def image_create(query: str, uid: str = "") -> ToolResult:
 
 
 def gmail_draft(to: list[str], subject: str, body: str, uid: str = "") -> ToolResult:
-    """Write a real .eml draft. Pushing it into Gmail needs the OAuth consent
-    flow, so until then it is saved locally and never sent by anyone but you."""
+    """Create a draft in the user's real Gmail when connected; otherwise write a
+    local .eml. Either way nothing is sent — the user presses send."""
+    if integrations.is_connected(uid):
+        try:
+            url = integrations.gmail_draft(uid, to, subject, body)
+            return ToolResult(
+                True,
+                f"Drafted “{subject}” in your Gmail — waiting for you to send",
+                [], {"url": url, "link_label": "open in Gmail"},
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("real gmail_draft failed, falling back to .eml: %s", exc)
     msg = EmailMessage()
     msg["From"] = "you@deckhand.demo"
     msg["To"] = ", ".join(to) or "the room"
@@ -126,8 +153,20 @@ def gmail_draft(to: list[str], subject: str, body: str, uid: str = "") -> ToolRe
 
 
 def calendar_hold(title: str, attendees: list[str], when: str, uid: str = "") -> ToolResult:
-    """Write a real .ics hold that opens straight into Calendar."""
+    """Put a real hold on the user's Google Calendar when connected; otherwise
+    write an .ics that opens straight into Calendar."""
     start = _parse_when(when)
+    if integrations.is_connected(uid):
+        try:
+            link = integrations.calendar_hold(uid, title, attendees, start)
+            pretty = start.strftime("%a %b %d, %I:%M %p").replace(" 0", " ")
+            return ToolResult(
+                True,
+                f"Held “{title}” on your Google Calendar — {pretty}",
+                [], {"url": link, "link_label": "open in Calendar", "when": pretty},
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("real calendar_hold failed, falling back to .ics: %s", exc)
     end = start + timedelta(minutes=30)
     stamp = "%Y%m%dT%H%M%S"
     ics = "\r\n".join([
@@ -142,7 +181,7 @@ def calendar_hold(title: str, attendees: list[str], when: str, uid: str = "") ->
     ])
     name = f"hold-{uuid.uuid4().hex[:8]}.ics"
     (MEDIA_DIR / name).write_text(ics)
-    pretty = start.strftime("%a %b %-d, %-I:%M %p")
+    pretty = start.strftime("%a %b %d, %I:%M %p").replace(" 0", " ")
     return ToolResult(
         True, f"Held “{title}” — {pretty} with {max(len(attendees), 1)} people",
         [], {"url": _url(name), "link_label": "add to calendar", "when": pretty},
@@ -195,6 +234,21 @@ def slides_export(title: str, page_count: int = 0, uid: str = "",
                   RGBColor(0xD8, 0xDA, 0xE6) if light else mut)
     name = f"{re.sub(r'[^a-z0-9]+', '-', (title or 'deck').lower()).strip('-')}-{uuid.uuid4().hex[:6]}.pptx"
     prs.save(MEDIA_DIR / name)
+
+    # Connected account: push the same deck into real Google Slides too.
+    if integrations.is_connected(uid):
+        try:
+            _, link = integrations.upload_pptx_as_slides(
+                uid, MEDIA_DIR / name, title or "Deckhand deck")
+            return ToolResult(
+                True,
+                f"Exported {len(pages)} slides — created “{title or 'the deck'}” in your Google Slides",
+                [], {"url": link, "link_label": "open in Google Slides",
+                     "pptx_url": _url(name)},
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Slides upload failed, serving .pptx only: %s", exc)
+
     return ToolResult(
         True, f"Exported {len(pages)} slides to “{title or 'the deck'}” (.pptx)",
         [], {"url": _url(name), "link_label": "download deck"},

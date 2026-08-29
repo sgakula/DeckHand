@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # Tried in order when the primary is out of quota. Free-tier per-day limits
     # are low enough that a single-model demo can die mid-session.
     gemini_fallback_models: str = "gemini-3.6-flash,gemini-2.5-flash,gemini-3.1-flash-lite"
-    gemini_live_model: str = "gemini-3.5-flash-live"
+    gemini_live_model: str = "gemini-live-2.5-flash"
     image_model: str = "gemini-3.1-flash-image"
     #: "low" keeps live-session turns snappy; "" lets the model think freely.
     gemini_thinking_level: str = "low"
@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     google_oauth_client_secret: str = ""
     oauth_redirect_uri: str = "http://localhost:8080/auth/google/callback"
 
+    #: Accept X-Guest-Id/X-Guest-Name headers as a lightweight identity so
+    #: teammates can join a session from an invite link without Firebase sign-in.
+    allow_guests: bool = True
     frontend_origin: str = "http://localhost:3000"
     #: Where this API is reachable from the browser (media URLs are absolute).
     public_base_url: str = "http://localhost:8090"
@@ -64,6 +67,7 @@ WORKSPACE_SCOPES = [
     "https://www.googleapis.com/auth/presentations",
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.compose",   # real drafts from the session tools
     "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/tasks",
     "https://www.googleapis.com/auth/spreadsheets.readonly",
