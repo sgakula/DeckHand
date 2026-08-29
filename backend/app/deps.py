@@ -1,4 +1,6 @@
 """FastAPI dependencies: authenticated user resolution via Firebase ID tokens."""
+import re
+
 from fastapi import Depends, HTTPException, Request
 
 from .config import settings
@@ -15,17 +17,26 @@ def _init_firebase() -> None:
         _firebase_ready = True
 
 
-async def current_uid(request: Request) -> str:
-    """Resolve the caller's uid from `Authorization: Bearer <firebase-id-token>`.
+_GUEST_ID_RE = re.compile(r"^[A-Za-z0-9_-]{4,40}$")
 
-    Local dev: set DEV_FAKE_UID to bypass verification (never in prod).
+
+async def current_uid(request: Request) -> str:
+    """Resolve the caller's identity, in order of strength:
+
+    1. `Authorization: Bearer <firebase-id-token>` - verified sign-in.
+    2. `X-Guest-Id` header (when ALLOW_GUESTS) - invite-link teammates. The
+       browser generates a stable random id; uid becomes "guest-<id>".
+    3. DEV_FAKE_UID - local dev only, never set in prod.
     """
     s = settings()
-    if s.dev_fake_uid:
-        return s.dev_fake_uid
-
     auth_header = request.headers.get("authorization", "")
+
     if not auth_header.lower().startswith("bearer "):
+        guest = request.headers.get("x-guest-id", "")
+        if s.allow_guests and _GUEST_ID_RE.match(guest):
+            return f"guest-{guest}"
+        if s.dev_fake_uid:
+            return s.dev_fake_uid
         raise HTTPException(401, "missing bearer token")
     token = auth_header.split(" ", 1)[1]
     try:

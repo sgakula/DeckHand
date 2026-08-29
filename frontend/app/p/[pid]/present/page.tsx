@@ -17,6 +17,8 @@ import { api } from "@/lib/api";
 import { clockTime, plural } from "@/lib/format";
 import { useAction, useResource } from "@/lib/hooks";
 import { useSpeech } from "@/lib/useSpeech";
+import { useLiveAudio } from "@/lib/useLiveAudio";
+import { liveSocketUrl } from "@/lib/api";
 import type { TalkNote } from "@/lib/types";
 import styles from "./present.module.css";
 
@@ -98,6 +100,20 @@ export default function PresentPage() {
 
   const speech = useSpeech({ onFinalText: pushWindow, windowSeconds: 25 });
 
+  // Preferred capture: raw audio -> Gemini Live via the backend broker. Falls
+  // back to browser STT (useSpeech) where AudioWorklet is unavailable.
+  const live = useLiveAudio({
+    wsUrl: talkId ? liveSocketUrl(`/live/talk/${pid}/${talkId}`) : null,
+    onNotes: (ns) => setLocalNotes((n) => [...ns, ...n]),
+    onNavigate: () => setIndex((i) => Math.min(i + 1, Math.max(slides.length - 1, 0))),
+  });
+
+  // Keep the note-taker pointed at the slide that is actually on screen.
+  useEffect(() => {
+    if (live.active && current) live.setSlide(current.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live.active, current?.id]);
+
   // Arrow keys drive the deck once a talk is running.
   useEffect(() => {
     if (!talkId) return;
@@ -132,6 +148,7 @@ export default function PresentPage() {
 
   const stop = async () => {
     if (!talkId) return;
+    if (live.active) live.stop();
     if (speech.listening) speech.stop();
     const result = await stopAction.run(() => api.stopTalk(pid, talkId));
     if (result) {
@@ -248,7 +265,28 @@ export default function PresentPage() {
           {plural(notes.length, "note")}
         </span>
         <div className={styles.barActions}>
-          {speech.supported && (
+          {live.supported ? (
+            <>
+              <Button
+                variant={live.active ? "tonal" : "secondary"}
+                size="sm"
+                onClick={() => (live.active ? live.stop() : void live.start())}
+                leading={<Icon name={live.active ? "mic" : "micOff"} size={15} />}
+              >
+                {live.active ? (live.tabAudio ? "Listening (mic + tab)" : "Listening") : "Start mic"}
+              </Button>
+              {!live.active && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void live.start({ includeTabAudio: true })}
+                  title="Also capture a shared tab's audio (e.g. your Google Meet call)"
+                >
+                  + Meet tab
+                </Button>
+              )}
+            </>
+          ) : speech.supported && (
             <Button
               variant={speech.listening ? "tonal" : "secondary"}
               size="sm"
@@ -270,9 +308,9 @@ export default function PresentPage() {
         </div>
       </div>
 
-      {speech.error && (
+      {(live.error ?? speech.error) && (
         <div style={{ marginBottom: "var(--s4)" }}>
-          <Alert tone="warning">{speech.error}</Alert>
+          <Alert tone="warning">{live.error ?? speech.error}</Alert>
         </div>
       )}
 

@@ -3,7 +3,11 @@
 import { flushSync } from "react-dom";
 
 type DocumentWithVT = Document & {
-  startViewTransition?: (callback: () => void) => { finished: Promise<void> };
+  startViewTransition?: (callback: () => void) => {
+    finished: Promise<void>;
+    ready: Promise<void>;
+    updateCallbackDone: Promise<void>;
+  };
 };
 
 /**
@@ -23,5 +27,11 @@ export function withViewTransition(update: () => void) {
     update();
     return;
   }
-  doc.startViewTransition(() => flushSync(update));
+  const transition = doc.startViewTransition(() => flushSync(update));
+  // A transition interrupted by the next update rejects these promises
+  // ("Transition was aborted because of invalid state"). That is normal in a
+  // fast-moving session; swallow it so it never surfaces as an unhandledRejection.
+  transition.finished.catch(() => undefined);
+  transition.ready.catch(() => undefined);
+  transition.updateCallbackDone.catch(() => undefined);
 }

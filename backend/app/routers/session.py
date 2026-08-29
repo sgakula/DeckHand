@@ -18,8 +18,8 @@ from ..schemas import now
 from .. import tools
 from ..workspaces import (
     FeedEvent, Note, Utterance, Workspace, WorkspaceKind, add_preference,
-    create_workspace, get_preferences, list_workspaces, make_page, new_workspace,
-    require_member, save_workspace,
+    create_workspace, get_preferences, get_workspace, list_workspaces, make_page,
+    new_workspace, require_member, save_workspace,
 )
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
@@ -33,6 +33,11 @@ _locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 class CreateReq(BaseModel):
     title: str = "Untitled"
     kind: WorkspaceKind = "presentation"
+
+
+class TranscribeReq(BaseModel):
+    #: base64 of raw 16 kHz mono PCM16 audio
+    pcm_base64: str
 
 
 class UtteranceReq(BaseModel):
@@ -80,6 +85,38 @@ async def index(uid: str = Uid):
 @router.get("/{wid}")
 async def get(wid: str, uid: str = Uid):
     return _member(wid, uid)
+
+
+@router.post("/{wid}/join")
+async def join(wid: str, uid: str = Uid):
+    """Join by invite link: anyone who has the workspace URL becomes a member.
+
+    Deliberate for the collaborative session - the link IS the invite. Idempotent.
+    """
+    w = get_workspace(wid)
+    if w is None:
+        raise HTTPException(404, "workspace not found")
+    if uid not in w.member_uids and uid != w.owner_uid:
+        w.member_uids.append(uid)
+        save_workspace(w)
+    return w
+
+
+@router.post("/{wid}/transcribe")
+async def transcribe(wid: str, req: TranscribeReq, uid: str = Uid):
+    """Mic fallback for browsers whose SpeechRecognition is a stub (Brave):
+    the client ships raw PCM windows; we transcribe with the main model."""
+    import base64
+
+    from ..transcribe import transcribe_pcm
+    _member(wid, uid)
+    try:
+        pcm = base64.b64decode(req.pcm_base64)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(400, "bad audio payload") from exc
+    if len(pcm) > 4_000_000:   # ~2 minutes; windows should be far smaller
+        raise HTTPException(413, "audio window too large")
+    return {"text": await transcribe_pcm(pcm)}
 
 
 @router.post("/{wid}/utterance")
@@ -136,8 +173,12 @@ async def _utterance(wid: str, req: UtteranceReq, uid: str):
     if decision.tool.name:
         # Off the event loop: a real tool (or image generation) can take long
         # enough that keeping the API responsive matters mid-session.
+        # Tools act as whoever in the room has a Google account connected, so a
+        # guest's question still reads the owner's real Drive.
+        from ..integrations import tool_uid
+        acting_uid = tool_uid(uid, w.owner_uid, w.member_uids)
         result = await asyncio.to_thread(
-            tools.execute, decision.tool.name, tools.args_for(decision.tool), uid,
+            tools.execute, decision.tool.name, tools.args_for(decision.tool), acting_uid,
             {"pages": [p.model_dump() for p in w.pages], "title": w.title},
         )
         if result is not None:

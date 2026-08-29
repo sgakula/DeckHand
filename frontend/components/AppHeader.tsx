@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { GoogleConnect } from "./GoogleConnect";
+import { SignIn } from "./SignIn";
+import { UserAvatar } from "./UserAvatar";
 import { ThemeToggle } from "./ThemeToggle";
 import { Icon } from "./ui/Icon";
 import styles from "./AppHeader.module.css";
@@ -37,11 +39,10 @@ export function AppHeader({
 
       <div className={styles.actions}>
         {actions}
+        <SignIn />
         <GoogleConnect />
         <ThemeToggle />
-        <span className={styles.avatar} title="Signed in as demo-user">
-          D
-        </span>
+        <UserAvatar />
       </div>
     </header>
   );

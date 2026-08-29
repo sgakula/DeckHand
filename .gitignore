@@ -12,6 +12,7 @@ venv/
 # Secrets & local config — never commit
 .env
 *.env
+.env.*
 !*.env.example
 !.env.example
 deploy/vars.env
@@ -43,3 +44,8 @@ deckhand/*
 # local dev datastore (contains real content, never commit)
 .localstore.json
 *.localstore.json.*.tmp
+
+# Runtime-generated session artifacts (images, drafts, decks, holds).
+# The 34 committed demo assets stay tracked; only NEW files are ignored.
+backend/.media/*
+TESTING.md

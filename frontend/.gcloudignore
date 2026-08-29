@@ -1,0 +1,7 @@
+# Keep the Cloud Build upload small; the buildpack reinstalls and rebuilds.
+node_modules/
+.next/
+.git/
+*.log
+.env*
+!.env.example

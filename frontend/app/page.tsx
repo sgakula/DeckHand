@@ -7,18 +7,34 @@ import { ArtifactFrame } from "@/components/workspace/ArtifactFrame";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
+import { api } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
-import {
-  WORKSPACES,
-  artifactById,
-  collaboratorById,
-  type WorkspaceSummary,
-} from "@/lib/artifacts";
+import { useResource } from "@/lib/hooks";
+import type { Artifact } from "@/lib/artifacts";
+import type { Workspace, WorkspacePage } from "@/lib/types";
 import styles from "./page.module.css";
 
-function WorkspaceCard({ workspace, index }: { workspace: WorkspaceSummary; index: number }) {
+function pageAsArtifact(page: WorkspacePage): Artifact {
+  return {
+    id: page.id,
+    title: page.label,
+    kind: "slide",
+    aspect: 16 / 9,
+    body: page.body,
+    state: "ready",
+    version: 1,
+    updatedAt: page.updated_at ?? "",
+    updatedBy: "you",
+  };
+}
+
+function WorkspaceCard({ workspace, index }: { workspace: Workspace; index: number }) {
   const router = useRouter();
-  const previews = workspace.previewIds.map(artifactById).filter(Boolean);
+  // Preview the real pages people made (edited ones have an updated_at).
+  const edited = workspace.pages.filter((p) => p.updated_at);
+  const previews = (edited.length ? edited : workspace.pages)
+    .slice(0, 3)
+    .map(pageAsArtifact);
 
   return (
     <button
@@ -28,35 +44,34 @@ function WorkspaceCard({ workspace, index }: { workspace: WorkspaceSummary; inde
       onClick={() => router.push(`/w/${workspace.id}`)}
     >
       <span className={styles.preview}>
-        {workspace.live && (
-          <span className={styles.liveTag}>
-            <span className={styles.liveDot} />
-            2 editing
-          </span>
-        )}
         {previews.map((artifact) => (
-          <span key={artifact!.id} className={styles.previewItem}>
-            <ArtifactFrame artifact={artifact!} logicalWidth={900} />
+          <span key={artifact.id} className={styles.previewItem}>
+            <ArtifactFrame artifact={artifact} logicalWidth={900} />
           </span>
         ))}
+        {previews.length === 0 && (
+          <span className={styles.previewItem}>
+            <span className={styles.newIcon}>
+              <Icon name="sparkle" size={20} />
+            </span>
+          </span>
+        )}
       </span>
 
       <span className={styles.body}>
-        <span className={styles.name}>{workspace.name}</span>
-        <span className={styles.purpose}>{workspace.purpose}</span>
+        <span className={styles.name}>{workspace.title}</span>
+        <span className={styles.purpose}>
+          {workspace.notes.length > 0
+            ? `${workspace.notes.length} notes captured`
+            : "Nothing captured yet — open it and start talking."}
+        </span>
         <span className={styles.foot}>
-          <span className={styles.members}>
-            {workspace.memberIds.map((id) => {
-              const person = collaboratorById(id);
-              return (
-                <span key={id} className={styles.avatar} style={{ background: person.color }}>
-                  {person.initials}
-                </span>
-              );
-            })}
+          <span className={styles.footMeta}>
+            {workspace.member_uids.length} member{workspace.member_uids.length === 1 ? "" : "s"}
           </span>
           <span className={styles.footMeta}>
-            {workspace.artifactCount} items · {relativeTime(workspace.updatedAt)}
+            {workspace.pages.length} page{workspace.pages.length === 1 ? "" : "s"} ·{" "}
+            {relativeTime(workspace.created_at)}
           </span>
         </span>
       </span>
@@ -67,11 +82,16 @@ function WorkspaceCard({ workspace, index }: { workspace: WorkspaceSummary; inde
 export default function HomePage() {
   const router = useRouter();
   const toast = useToast();
+  const workspaces = useResource((init) => api.listWorkspaces(init), []);
 
   const createWorkspace = () => {
     toast.success("New workspace");
     router.push("/w/new");
   };
+
+  const mine = [...(workspaces.data ?? [])].sort((a, b) =>
+    (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+  );
 
   return (
     <div className={styles.page}>
@@ -100,7 +120,7 @@ export default function HomePage() {
         <SectionHeader title="Your workspaces" />
 
         <div className={styles.grid}>
-          {WORKSPACES.map((workspace, i) => (
+          {mine.map((workspace, i) => (
             <WorkspaceCard key={workspace.id} workspace={workspace} index={i} />
           ))}
           <button type="button" className={styles.newCard} onClick={createWorkspace}>
