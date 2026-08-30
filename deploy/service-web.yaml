@@ -1,0 +1,89 @@
+# Deckhand web + API as ONE Cloud Run service (multi-container).
+#
+# Why: Google's run.app edge currently 404s HTTP/1.1 requests to freshly
+# created hostnames (open platform bug), which breaks both direct browser
+# calls to the API and server-side proxy hops to its public URL. Co-locating
+# the containers means the frontend's /api/deckhand/* proxy reaches the API
+# over localhost — the edge is not in the request path at all.
+#
+# Deploy:  gcloud run services replace deploy/service-web.yaml --region us-central1
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: deckhand-web
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: '2'
+        run.googleapis.com/startup-cpu-boost: 'true'
+        # Hold the UI until the API sidecar is actually listening: Next.js is
+        # ready in ~2s, the Python API needs ~10s to import ADK, and without
+        # this the first proxied request lands on a closed port.
+        run.googleapis.com/container-dependencies: '{"web":["api"]}'
+    spec:
+      serviceAccountName: deckhand-api@deckhand-506420.iam.gserviceaccount.com
+      containerConcurrency: 80
+      timeoutSeconds: 3600
+      containers:
+        # Ingress container: Next.js UI + same-origin API proxy.
+        - name: web
+          image: us-central1-docker.pkg.dev/deckhand-506420/cloud-run-source-deploy/deckhand-web:proxy
+          ports:
+            - name: http1
+              containerPort: 8080
+          env:
+            - name: API_PROXY_TARGET
+              value: http://localhost:8090
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+        # Sidecar: FastAPI + ADK agents, reachable only from the web container.
+        - name: api
+          image: us-central1-docker.pkg.dev/deckhand-506420/cloud-run-source-deploy/deckhand-api2:latest
+          # PORT is reserved by Cloud Run for the ingress container, so the
+          # sidecar cannot pick its port through the environment - it would
+          # fall back to 8080 and collide with `web`. Bind it explicitly.
+          command: ['/bin/sh', '-c']
+          args: ['exec uvicorn app.main:app --host 0.0.0.0 --port 8090']
+          startupProbe:
+            tcpSocket:
+              port: 8090
+            periodSeconds: 3
+            failureThreshold: 30
+            timeoutSeconds: 3
+          env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: deckhand-506420
+            - name: GOOGLE_CLOUD_LOCATION
+              value: global
+            - name: GOOGLE_GENAI_USE_VERTEXAI
+              value: 'true'
+            - name: LOCAL_STORE
+              value: 'false'
+            - name: PUBSUB_TOPIC
+              value: deckhand-jobs
+            - name: GCS_BUCKET
+              value: deckhand-506420-deckhand-assets
+            - name: FRONTEND_ORIGIN
+              value: https://deckhand-web-cfsfhlwh7q-uc.a.run.app
+            - name: GOOGLE_OAUTH_CLIENT_ID
+              value: 121281641444-mvec2sopfan8nepsklpqq0thu49t04om.apps.googleusercontent.com
+            - name: OAUTH_REDIRECT_URI
+              value: https://deckhand-web-cfsfhlwh7q-uc.a.run.app/api/deckhand/auth/google/callback
+            - name: PUBLIC_BASE_URL
+              value: https://deckhand-web-cfsfhlwh7q-uc.a.run.app/api/deckhand
+            - name: ENABLE_TRACING
+              value: 'true'
+            - name: GOOGLE_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth-client-secret
+                  key: latest
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi

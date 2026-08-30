@@ -52,6 +52,16 @@ export function setAuthToken(token: string | null) {
   authToken = token;
 }
 
+// Fire one throwaway request at the API origin as early as possible: even an
+// edge-404 response carries Alt-Svc, which upgrades this origin to HTTP/3 for
+// everything that follows. no-cors keeps it silent regardless of outcome.
+let warmed = false;
+function warmApiOrigin() {
+  if (warmed || typeof window === "undefined") return;
+  warmed = true;
+  void fetch(`${API_BASE}/healthz`, { mode: "no-cors" }).catch(() => undefined);
+}
+
 function extractMessage(status: number, body: unknown): string {
   if (typeof body === "string" && body) return body;
   if (body && typeof body === "object") {
@@ -87,22 +97,41 @@ async function request<T>(
     }
   }
 
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: init?.signal,
-    });
-  } catch (err) {
-    if ((err as Error)?.name === "AbortError") throw err;
-    // FastAPI attaches no CORS headers to unhandled 500s, so the browser blocks the
-    // response and fetch rejects. Say so rather than reporting a bare network error.
-    throw new NetworkError(
-      `Could not reach the Deckhand API at ${API_BASE}. It may be offline, or it ` +
-        `returned a server error whose response was blocked by CORS — check the API logs.`,
-    );
+  warmApiOrigin();
+
+  // Cloud Run edge quirk on fresh run.app hostnames: HTTP/1.1 requests can be
+  // answered by Google's edge with a CORS-less HTML 404 (the browser surfaces
+  // that as a NETWORK error, not a response), while HTTP/3 routes fine. Every
+  // failed attempt still delivers the Alt-Svc header that teaches the browser
+  // h3, so a few short retries ride straight through. Our own API never 404s
+  // with HTML, so an HTML 404 is always the edge, not us.
+  let res!: Response;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: init?.signal,
+      });
+    } catch (err) {
+      if ((err as Error)?.name === "AbortError") throw err;
+      if (attempt < 3) {
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+        continue;
+      }
+      // Also covers FastAPI 500s, which carry no CORS headers and get blocked.
+      throw new NetworkError(
+        `Could not reach the Deckhand API at ${API_BASE}. It may be offline, or it ` +
+          `returned a server error whose response was blocked by CORS — check the API logs.`,
+      );
+    }
+    const ct = res.headers.get("content-type") ?? "";
+    if (res.status === 404 && ct.includes("text/html") && attempt < 3) {
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+      continue;
+    }
+    break;
   }
 
   if (res.status === 204) return undefined as T;
@@ -245,6 +274,8 @@ export const api = {
 
 /** WebSocket URL for the Gemini Live broker (audio in, transcript/notes out). */
 export function liveSocketUrl(path: string): string {
-  const base = API_BASE.replace(/^http/, "ws");
-  return `${base}${path}`;
+  if (API_BASE.startsWith("http")) return `${API_BASE.replace(/^http/, "ws")}${path}`;
+  // Relative API base (same-origin proxy): derive the socket URL from the page.
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.host}${API_BASE}${path}`;
 }
