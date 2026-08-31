@@ -49,3 +49,6 @@ deckhand/*
 # The 34 committed demo assets stay tracked; only NEW files are ignored.
 backend/.media/*
 TESTING.md
+# docs/thumbnail.*
+docs/thumbnail*
+deploy_images/*
