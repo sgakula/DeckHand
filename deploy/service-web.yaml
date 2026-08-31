@@ -43,7 +43,7 @@ spec:
               memory: 512Mi
         # Sidecar: FastAPI + ADK agents, reachable only from the web container.
         - name: api
-          image: us-central1-docker.pkg.dev/deckhand-506420/cloud-run-source-deploy/deckhand-api2:latest
+          image: us-central1-docker.pkg.dev/deckhand-506420/cloud-run-source-deploy/deckhand-api:latest
           # PORT is reserved by Cloud Run for the ingress container, so the
           # sidecar cannot pick its port through the environment - it would
           # fall back to 8080 and collide with `web`. Bind it explicitly.
